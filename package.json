@@ -1,0 +1,27 @@
+{
+  "name": "mcp-server-linkedin",
+  "version": "0.1.0",
+  "description": "MCP server for LinkedIn scraping and automation (TypeScript + Bun port)",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": false,
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "start": "bun run src/index.ts",
+    "login": "bun run src/login.ts",
+    "test": "bun test",
+    "lint": "biome check src/ tests/",
+    "lint:fix": "biome check --apply src/ tests/",
+    "format": "biome format --write src/ tests/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^6.0"
+  },
+  "peerDependencies": {},
+  "keywords": ["mcp", "linkedin", "scraping", "model-context-protocol"],
+  "license": "Apache-2.0"
+}
