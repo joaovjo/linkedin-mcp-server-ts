@@ -67,9 +67,9 @@ export function truncateToLimit(text: string, maxLength: number): string {
 	const truncated = text.slice(0, maxLength);
 	const lastNewline = truncated.lastIndexOf("\n");
 	if (lastNewline > maxLength * 0.5) {
-		return truncated.slice(0, lastNewline) + "\n[truncated]";
+		return `${truncated.slice(0, lastNewline)}\n[truncated]`;
 	}
-	return truncated + " [truncated]";
+	return `${truncated} [truncated]`;
 }
 
 export function extractUrls(text: string): string[] {

@@ -17,6 +17,7 @@ import {
 import {
 	applySectionText,
 	normalizeCsv,
+	parseSectionNames,
 	RATE_LIMITED_MSG,
 } from "../src/scraping/section-result.ts";
 
@@ -272,6 +273,15 @@ describe("job filters", () => {
 		params.set("f_EA", "true");
 		expect(params.get("f_EA")).toBe("true");
 		expect(params.has("f_AL")).toBe(false);
+	});
+});
+
+describe("section name parsing", () => {
+	test("separates known and unknown section names", () => {
+		const parsed = parseSectionNames("experience,skills,unknown");
+		expect(parsed.names).toEqual(["experience", "skills", "unknown"]);
+		expect(Array.from(parsed.known)).toEqual(["experience", "skills"]);
+		expect(parsed.unknown).toEqual(["unknown"]);
 	});
 });
 

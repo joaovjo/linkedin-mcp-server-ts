@@ -67,10 +67,38 @@ export function parseSectionNames(raw: string | undefined): {
 	const unknown: string[] = [];
 	const names: string[] = [];
 	if (!raw) return { names, unknown, known };
+
+	const validNames = new Set<string>([
+		"about",
+		"experience",
+		"education",
+		"interests",
+		"honors",
+		"languages",
+		"certifications",
+		"skills",
+		"projects",
+		"contact_info",
+		"posts",
+		"jobs",
+		"main_profile",
+		"search_results",
+		"employees",
+		"inbox",
+		"conversation",
+		"feed",
+		"job_posting",
+	]);
+
 	for (const part of raw.split(",")) {
 		const name = part.trim().toLowerCase();
 		if (!name) continue;
 		names.push(name);
+		if (validNames.has(name)) {
+			known.add(name);
+		} else {
+			unknown.push(name);
+		}
 	}
 	return { names, unknown, known };
 }

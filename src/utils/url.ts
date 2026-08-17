@@ -35,7 +35,7 @@ export function buildSearchUrl(
 		}
 	}
 
-	return base + "?" + searchParams.toString();
+	return `${base}?${searchParams.toString()}`;
 }
 
 export function buildPeopleSearchUrl(params: {

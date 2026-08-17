@@ -67,7 +67,7 @@ export async function extractRootContent(
 				const href = a.getAttribute("href") || "";
 				if (!href || href.startsWith("#") || href.startsWith("javascript:"))
 					continue;
-				const key = href + "|" + (a.textContent || "").slice(0, 40);
+				const key = `${href}|${(a.textContent || "").slice(0, 40)}`;
 				if (seen.has(key)) continue;
 				seen.add(key);
 
