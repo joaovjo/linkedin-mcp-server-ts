@@ -68,7 +68,8 @@ export function registerPersonTools(server: McpServer, config: AppConfig): void 
 							unknownSections.push(name);
 							continue;
 						}
-						const def = PERSON_SECTIONS[name]!;
+						const def = PERSON_SECTIONS[name];
+						if (!def) continue;
 						const result = await extractSection(name, def, args.linkedin_username, args.max_scrolls);
 						applySectionText(sections, sectionErrors, name, result.text, result.error);
 						if (result.references.length && sections[name]) {
@@ -248,7 +249,8 @@ export function registerPersonTools(server: McpServer, config: AppConfig): void 
 							};
 							continue;
 						}
-						const def = PERSON_SECTIONS[name]!;
+						const def = PERSON_SECTIONS[name];
+						if (!def) continue;
 						const result = await extractSection(name, def, username, args.max_scrolls);
 						applySectionText(sections, sectionErrors, name, result.text, result.error);
 						if (result.references.length && sections[name]) {

@@ -1,6 +1,6 @@
 {
   "name": "linkedin-mcp-server-ts",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "High-performance TypeScript & Bun MCP server for LinkedIn scraping and automation",
   "module": "src/index.ts",
   "bin": {
@@ -33,6 +33,7 @@
     "test:e2e": "bun test tests/e2e",
     "test:coverage": "bun test --coverage",
     "docs": "typedoc --out docs src/index.ts",
+    "docs:serve": "bunx serve docs",
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "lint:fix:unsafe": "biome check --write --unsafe",

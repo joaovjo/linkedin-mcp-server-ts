@@ -88,8 +88,8 @@ export function registerMessagingTools(server: McpServer, config: AppConfig): vo
 
 				if (args.thread_id) {
 					await browserManager.navigate(`${LINKEDIN_BASE}/messaging/thread/${args.thread_id}/`);
-				} else {
-					const username = args.linkedin_username!;
+				} else if (args.linkedin_username) {
+					const username = args.linkedin_username;
 					await browserManager.navigate(`${LINKEDIN_BASE}/in/${username}/`);
 					await Bun.sleep(1200);
 					const displayName = await readProfileDisplayName();
@@ -100,12 +100,13 @@ export function registerMessagingTools(server: McpServer, config: AppConfig): vo
 					if (!threadUrls.length) {
 						throw new LinkedInScraperException(`Could not find a conversation for ${username}.`);
 					}
-					if (index >= threadUrls.length) {
+					const targetThreadUrl = threadUrls[index];
+					if (!targetThreadUrl) {
 						throw new LinkedInScraperException(
 							`index ${index} out of range: only ${threadUrls.length} thread(s) exist for ${username}.`,
 						);
 					}
-					await browserManager.navigate(threadUrls[index]!);
+					await browserManager.navigate(targetThreadUrl);
 				}
 
 				await Bun.sleep(1200);

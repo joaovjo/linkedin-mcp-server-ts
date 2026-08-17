@@ -43,16 +43,18 @@ async function clickIncomingAccept(): Promise<boolean> {
 					const buttons = el.querySelectorAll("button");
 					const labeled = el.querySelectorAll("button[aria-label]");
 					const expanders = el.querySelectorAll("button[aria-expanded]");
+					const exp0 = expanders[0];
 					if (
 						buttons.length === 3 &&
 						labeled.length === 2 &&
 						expanders.length === 1 &&
-						!expanders[0]!.hasAttribute("aria-label") &&
+						exp0 &&
+						!exp0.hasAttribute("aria-label") &&
 						!el.querySelector('a[href*="/messaging/compose/"]') &&
 						!el.querySelector('a[href*="/preload/custom-invite/"]') &&
 						!el.querySelector("a[aria-label]")
 					) {
-						(labeled[0] as HTMLButtonElement).click();
+						(labeled[0] as HTMLButtonElement | undefined)?.click();
 						return true;
 					}
 					break;
@@ -110,7 +112,8 @@ async function submitInviteDialog(note?: string): Promise<{
 				const dialog = document.querySelector("dialog[open]") || document.querySelector('[role="dialog"]');
 				if (!dialog) return;
 				const buttons = [...dialog.querySelectorAll("button, [role='button']")] as HTMLElement[];
-				if (buttons.length >= 2) buttons[buttons.length - 2]!.click();
+				const targetBtn = buttons[buttons.length - 2];
+				if (targetBtn) targetBtn.click();
 			});
 			await Bun.sleep(800);
 			const upsell = await getPremiumUpsellMessage();
@@ -144,9 +147,8 @@ async function submitInviteDialog(note?: string): Promise<{
 		const dialog = document.querySelector("dialog[open]") || document.querySelector('[role="dialog"]');
 		if (!dialog) return false;
 		const buttons = [...dialog.querySelectorAll("button, [role='button']")] as HTMLButtonElement[];
-		if (!buttons.length) return false;
-		const primary = buttons[buttons.length - 1]!;
-		if (primary.disabled) return false;
+		const primary = buttons[buttons.length - 1];
+		if (!primary || primary.disabled) return false;
 		primary.click();
 		return true;
 	});
@@ -251,7 +253,8 @@ export async function connectWithPerson(linkedinUsername: string, note?: string)
 					const dialog = document.querySelector("dialog[open]") || document.querySelector('[role="dialog"]');
 					if (!dialog) return;
 					const buttons = [...dialog.querySelectorAll("button, [role='button']")] as HTMLElement[];
-					if (buttons.length >= 2) buttons[buttons.length - 2]!.click();
+					const targetBtn = buttons[buttons.length - 2];
+					if (targetBtn) targetBtn.click();
 				});
 				await Bun.sleep(800);
 				const msg = await getPremiumUpsellMessage();

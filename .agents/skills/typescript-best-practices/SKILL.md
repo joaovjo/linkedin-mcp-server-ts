@@ -3,28 +3,47 @@ name: typescript-best-practices
 description: Use when reading or writing TypeScript or JavaScript files (.ts, .tsx, .js, tsconfig.json).
 ---
 
-# TypeScript Best Practices
+# TypeScript Best Practices & Style Guide
 
-Follows type-first, functional, and error handling patterns from CLAUDE.md. This skill covers language-specific idioms only.
+Segue as diretrizes normativas consolidadas em [`.agents/rules/typescript-style.md`](file:///d:/linkedin/linkedin-mcp-server-ts/.agents/rules/typescript-style.md), combinando o **Google TypeScript Style Guide**, **ts.dev** e os padrões modernos do ecossistema Bun/Biome/Zod/MCP.
 
-## Pair with React Best Practices
+---
 
-When working with React components (`.tsx`, `.jsx` files or `@react` imports), always load `react-best-practices` alongside this skill. This skill covers TypeScript fundamentals; React-specific patterns (effects, hooks, refs, component design) are in the dedicated React skill.
+## 1. Modelagem de Tipos: `interface` vs. `type`
 
-## Make Illegal States Unrepresentable
+- **Use `interface`** para formatos de objetos estruturados, contratos de classes, configurações (`AppConfig`) e opções de APIs/serviços:
+  ```ts
+  export interface ScraperOptions {
+  	timeoutMs: number;
+  	headless: boolean;
+  	userAgent?: string;
+  }
+  ```
+- **Use `type`** para Uniões Discriminadas, Branded Types, Tipos Utilitários/Mapeados e inferências Zod:
+  ```ts
+  export type ConnectionState =
+  	| { status: "connectable"; actionText: string }
+  	| { status: "already_connected" }
+  	| { status: "pending" }
+  	| { status: "unavailable" };
+  ```
 
-Use the type system to prevent invalid states at compile time.
+---
 
-**Discriminated unions for mutually exclusive states:**
+## 2. Torne Estados Ilegais Irrepresentáveis (*Make Illegal States Unrepresentable*)
+
+Use o sistema de tipos para prevenir estados inválidos em tempo de compilação.
+
+**Uniões discriminadas para estados mutuamente exclusivos:**
 ```ts
-// Good: only valid combinations possible
+// Bom: apenas combinações válidas são possíveis
 type RequestState<T> =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'success'; data: T }
-  | { status: 'error'; error: Error };
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: T }
+  | { status: "error"; error: Error };
 
-// Bad: allows invalid combinations like { loading: true, error: Error }
+// Ruim: permite combinações inválidas como { loading: true, error: Error }
 type RequestState<T> = {
   loading: boolean;
   data?: T;
@@ -32,27 +51,26 @@ type RequestState<T> = {
 };
 ```
 
-**Branded types for domain primitives:**
+**Branded types para primitivos de domínio:**
 ```ts
-type UserId = string & { readonly __brand: 'UserId' };
-type OrderId = string & { readonly __brand: 'OrderId' };
+type UserId = string & { readonly __brand: "UserId" };
+type OrderId = string & { readonly __brand: "OrderId" };
 
-// Compiler prevents passing OrderId where UserId expected
+// O compilador impede passar OrderId onde UserId é esperado
 function getUser(id: UserId): Promise<User> { /* ... */ }
 ```
 
-**Const assertions for literal unions:**
+**Const assertions para uniões literais (Banido `enum` tradicional):**
 ```ts
-const ROLES = ['admin', 'user', 'guest'] as const;
-type Role = typeof ROLES[number]; // 'admin' | 'user' | 'guest'
+const ROLES = ["admin", "user", "guest"] as const;
+type Role = typeof ROLES[number]; // "admin" | "user" | "guest"
 
-// Array and type stay in sync automatically
 function isValidRole(role: string): role is Role {
   return ROLES.includes(role as Role);
 }
 ```
 
-**Exhaustive switch with never check:**
+**Exhaustive switch com checagem `never`:**
 ```ts
 type Status = "active" | "inactive";
 
@@ -64,32 +82,57 @@ function processStatus(status: Status): string {
       return "skipped";
     default: {
       const _exhaustive: never = status;
-      throw new Error(`unhandled status: ${_exhaustive}`);
+      throw new Error(`Unhandled status: ${_exhaustive}`);
     }
   }
 }
 ```
 
-## Runtime Validation with Zod
+---
 
-- Define schemas as single source of truth; infer TypeScript types with `z.infer<>`. Avoid duplicating types and schemas.
-- Use `safeParse` for user input where failure is expected; use `parse` at trust boundaries where invalid data is a bug.
-- Compose schemas with `.extend()`, `.pick()`, `.omit()`, `.merge()` for DRY definitions.
-- Add `.transform()` for data normalization at parse time (trim strings, parse dates).
+## 3. Nullability & Proibição de Non-Null Assertion (`!`)
+
+- **Nunca utilize `!` (*non-null assertion*)**:
+  - Trate potenciais `null` ou `undefined` com type guards defensivos (`if (val == null)`), operadores de coalescência nula (`??`) ou validação com Zod.
+  - O linter Biome está configurado para emitir erro em qualquer uso de `!`.
+
+---
+
+## 4. Tipos de Retorno Explícitos em APIs Públicas
+
+Declare explicitamente o tipo de retorno em todas as funções, métodos de classes e ferramentas MCP exportadas:
+```ts
+// Bom: contrato explícito e auto-documentado
+export async function scrapeProfile(username: string): Promise<ProfileData> {
+  // ...
+}
+
+// Ruim: retorno inferido que pode sofrer breaking changes silenciosas
+export async function scrapeProfile(username: string) {
+  // ...
+}
+```
+
+---
+
+## 5. Validação em Runtime com Zod
+
+- Defina esquemas como a única fonte de verdade e infira tipos TypeScript com `z.infer<typeof Schema>`.
+- Use `safeParse` para entradas externas/usuário onde falha é esperada; use `parse` em fronteiras de confiança onde dados inválidos representam bug.
+- Componha esquemas com `.extend()`, `.pick()`, `.omit()`, `.merge()`.
 
 ```ts
 import { z } from "zod";
 
-const UserSchema = z.object({
+export const UserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   name: z.string().min(1),
   createdAt: z.string().transform((s) => new Date(s)),
 });
 
-type User = z.infer<typeof UserSchema>;
+export type User = z.infer<typeof UserSchema>;
 
-// Strict parsing at trust boundaries — throws if API contract violated
 export async function fetchUser(id: string): Promise<User> {
   const response = await fetch(`/api/users/${id}`);
   if (!response.ok) {
@@ -97,28 +140,35 @@ export async function fetchUser(id: string): Promise<User> {
   }
   return UserSchema.parse(await response.json());
 }
+```
 
-// Caller handles both success and error from user input
-const result = UserSchema.safeParse(formData);
-if (!result.success) {
-  setErrors(result.error.flatten().fieldErrors);
-  return;
+---
+
+## 6. Documentação TSDoc (Typedoc Compatible)
+
+Documente todas as interfaces, funções públicas, classes e ferramentas MCP usando blocos TSDoc:
+```ts
+/**
+ * Inicializa a conexão com o navegador Chrome para automação.
+ *
+ * @remarks
+ * Verifica portas de depuração existentes antes de iniciar uma nova instância.
+ *
+ * @param config - Configuração operacional da aplicação.
+ * @returns Instância gerenciada do navegador conectada.
+ * @throws {BrowserLaunchException} Caso o binário do Chrome não seja encontrado.
+ * @public
+ */
+export async function launchBrowser(config: AppConfig): Promise<BrowserSession> {
+  // ...
 }
 ```
 
-## Optional: type-fest
+---
 
-For advanced type utilities beyond TypeScript builtins, consider [type-fest](https://github.com/sindresorhus/type-fest):
+## 7. Módulos & Convenções de Importação
 
-- `Opaque<T, Token>` - cleaner branded types than manual `& { __brand }` pattern
-- `PartialDeep<T>` - recursive partial for nested objects
-- `ReadonlyDeep<T>` - recursive readonly for immutable data
-- `SetRequired<T, K>` / `SetOptional<T, K>` - targeted field modifications
-- `Simplify<T>` - flatten complex intersection types in IDE tooltips
-
-```ts
-import type { Opaque, PartialDeep } from 'type-fest';
-
-type UserId = Opaque<string, 'UserId'>;
-type UserPatch = PartialDeep<User>;
-```
+- **Named Exports**: Sempre prefira exportações nomeadas sobre `export default`.
+- **Importação de Tipos**: Use `import type { ... }` para respeitar `"verbatimModuleSyntax": true`.
+- **Imports Nativos**: Use o prefixo `node:` para módulos da standard library (`import { join } from "node:path"`).
+- **Nomenclatura de Arquivos**: Use `kebab-case` para todos os arquivos e diretórios (`connection-state.ts`, `auth-flow.ts`).

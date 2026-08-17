@@ -116,7 +116,8 @@ describe("E2E: Hermetic Tools Execution", () => {
 
 		const tool = registered.get_person_profile;
 		expect(tool).toBeDefined();
-		const result = await tool!.handler({
+		if (!tool) throw new Error("get_person_profile tool is not registered");
+		const result = await tool.handler({
 			linkedin_username: "janedoe",
 		});
 
@@ -127,7 +128,7 @@ describe("E2E: Hermetic Tools Execution", () => {
 		const parsed = JSON.parse(result.content[0]?.text ?? "{}");
 		expect(parsed.url).toContain("janedoe");
 		expect(parsed.sections.main_profile).toContain("Senior Software Engineer");
-		expect(parsed.references.main_profile[0].kind).toBe("company");
+		expect(parsed.references.main_profile[0]?.kind).toBe("company");
 	});
 
 	test("executes get_company_profile hermetic flow and produces structured envelope", async () => {
@@ -143,7 +144,8 @@ describe("E2E: Hermetic Tools Execution", () => {
 
 		const tool = registered.get_company_profile;
 		expect(tool).toBeDefined();
-		const result = await tool!.handler({
+		if (!tool) throw new Error("get_company_profile tool is not registered");
+		const result = await tool.handler({
 			company_name: "acme-corp",
 		});
 
@@ -171,7 +173,8 @@ describe("E2E: Hermetic Tools Execution", () => {
 
 		const tool = registered.get_person_profile;
 		expect(tool).toBeDefined();
-		const result = await tool!.handler({
+		if (!tool) throw new Error("get_person_profile tool is not registered");
+		const result = await tool.handler({
 			linkedin_username: "janedoe",
 		});
 

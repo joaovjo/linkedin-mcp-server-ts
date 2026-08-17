@@ -36,7 +36,8 @@ describe("E2E: Live LinkedIn Suite (Optional / Conditional)", () => {
 
 		const tool = registered.get_my_profile;
 		expect(tool).toBeDefined();
-		const res = await tool!.handler({});
+		if (!tool) throw new Error("get_my_profile tool is not registered");
+		const res = await tool.handler({});
 		expect(res.content).toBeDefined();
 		expect(res.content[0]?.text).toBeDefined();
 	});

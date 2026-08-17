@@ -143,7 +143,10 @@ class BrowserManager {
 		await this.getView().navigate(url);
 	}
 
-	async evaluate<T = unknown>(script: string | ((...args: unknown[]) => T), ...args: unknown[]): Promise<T> {
+	async evaluate<T = unknown, TArgs extends unknown[] = unknown[]>(
+		script: string | ((...args: TArgs) => T),
+		...args: TArgs
+	): Promise<T> {
 		const view = this.getView();
 		if (typeof script === "function") {
 			return (await (view.evaluate as (...a: unknown[]) => Promise<T>)(script, ...args)) as T;

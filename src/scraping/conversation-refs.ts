@@ -41,7 +41,8 @@ export async function extractConversationThreadRefs(
 	const seen = new Set<string>();
 
 	for (let i = 0; i < cap; i++) {
-		const row = labels[i]!;
+		const row = labels[i];
+		if (!row) continue;
 		const before = await browserManager.getCurrentUrl();
 
 		const clicked = await browserManager.evaluate<boolean>((idx: number) => {

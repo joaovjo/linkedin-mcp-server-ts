@@ -45,7 +45,10 @@ export function registerPostTools(server: McpServer, config: AppConfig): void {
 					origin: "FACETED_SEARCH",
 				});
 				if (args.date_posted) {
-					params.set("datePosted", JSON.stringify([DATE_MAP[args.date_posted]!]));
+					const mappedDate = DATE_MAP[args.date_posted];
+					if (mappedDate) {
+						params.set("datePosted", JSON.stringify([mappedDate]));
+					}
 				}
 				const url = `${LINKEDIN_BASE}/search/results/content/?${params}`;
 				await browserManager.navigate(url);

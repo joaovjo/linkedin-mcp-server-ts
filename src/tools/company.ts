@@ -51,7 +51,8 @@ export function registerCompanyTools(server: McpServer, config: AppConfig): void
 							unknownSections.push(name);
 							continue;
 						}
-						const def = COMPANY_SECTIONS[name]!;
+						const def = COMPANY_SECTIONS[name];
+						if (!def) continue;
 						const result = await extractSection(name, def, args.company_name, name === "posts" ? 10 : 5);
 						applySectionText(sections, sectionErrors, name, result.text, result.error);
 						if (result.references.length && sections[name]) {

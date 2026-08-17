@@ -105,11 +105,13 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 			wrapTool(config, async () => {
 				const params = new URLSearchParams({ keywords: args.keywords });
 				if (args.location) params.set("location", args.location);
-				if (args.date_posted && DATE_POSTED_MAP[args.date_posted]) {
-					params.set("f_TPR", DATE_POSTED_MAP[args.date_posted]!);
+				if (args.date_posted) {
+					const mappedDate = DATE_POSTED_MAP[args.date_posted];
+					if (mappedDate) params.set("f_TPR", mappedDate);
 				}
-				if (args.sort_by && SORT_BY_MAP[args.sort_by]) {
-					params.set("sortBy", SORT_BY_MAP[args.sort_by]!);
+				if (args.sort_by) {
+					const mappedSort = SORT_BY_MAP[args.sort_by];
+					if (mappedSort) params.set("sortBy", mappedSort);
 				}
 				if (args.easy_apply) params.set("f_EA", "true");
 				if (args.job_type) {

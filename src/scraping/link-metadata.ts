@@ -115,11 +115,12 @@ function isLinkedInHost(host: string): boolean {
 }
 
 function isLinkedInChrome(path: string): boolean {
-	let p = path.split("?", 1)[0]!.split("#", 1)[0]!;
+	const withoutQuery = path.split("?", 1)[0] ?? "";
+	let p = withoutQuery.split("#", 1)[0] ?? "";
 	if (!p.startsWith("/")) p = `/${p}`;
 	const segments = p.split("/").filter(Boolean);
-	if (!segments.length) return false;
-	const first = segments[0]!;
+	const first = segments[0];
+	if (!first) return false;
 	const second = segments[1] ?? "";
 	if (["help", "legal", "about", "accessibility", "mypreferences", "preferences"].includes(first)) {
 		return true;
@@ -133,9 +134,9 @@ function isLinkedInChrome(path: string): boolean {
 
 export function firstCompanyUrnFromQuery(query: string): string | null {
 	const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
-	const values = params.getAll("currentCompany");
-	if (!values.length) return null;
-	const match = FIRST_URN_RE.exec(values[0]!);
+	const firstValue = params.getAll("currentCompany")[0];
+	if (!firstValue) return null;
+	const match = FIRST_URN_RE.exec(firstValue);
 	return match?.[1] ?? null;
 }
 
@@ -244,12 +245,14 @@ export function cleanLabel(value: string, kind: ReferenceKind): string | null {
 	value = value.replace(/^[\s:-]+|[\s:-]+$/g, "");
 
 	if (value.includes(" by ") && (kind === "article" || kind === "external")) {
-		value = value.split(" by ", 1)[0]!.trim();
+		const part = value.split(" by ", 1)[0];
+		if (part) value = part.trim();
 	}
 
 	for (const separator of [" • ", " · ", " | "]) {
 		if (value.includes(separator)) {
-			value = value.split(separator, 1)[0]!.trim();
+			const part = value.split(separator, 1)[0];
+			if (part) value = part.trim();
 		}
 	}
 
@@ -282,7 +285,8 @@ function chooseReferenceText(raw: RawReference, kind: ReferenceKind): string | n
 		const keyB = [b[1].length < 3 ? 1 : 0, b[1].length, b[0]] as const;
 		return keyA[0] - keyB[0] || keyA[1] - keyB[1] || keyA[2] - keyB[2];
 	});
-	return candidates[0]![1];
+	const winner = candidates[0];
+	return winner ? winner[1] : null;
 }
 
 function cleanHeading(value: string): string | null {
@@ -292,7 +296,8 @@ function cleanHeading(value: string): string | null {
 }
 
 function deriveContext(sectionName: string, raw: RawReference, kind: ReferenceKind): string | null {
-	if (sectionName in SECTION_CONTEXTS) return SECTION_CONTEXTS[sectionName]!;
+	const directContext = SECTION_CONTEXTS[sectionName];
+	if (directContext) return directContext;
 	const heading = cleanHeading(raw.heading ?? "");
 
 	if (sectionName === "search_results") {
@@ -359,7 +364,11 @@ export function dedupeReferences(references: Reference[], cap?: number): Referen
 		const better = b[0] > a[0] || (b[0] === a[0] && b[1] > a[1]) || (b[0] === a[0] && b[1] === a[1] && b[2] > a[2]);
 		if (better) deduped.set(reference.url, reference);
 	}
-	const ordered = orderedUrls.map((u) => deduped.get(u)!);
+	const ordered: Reference[] = [];
+	for (const u of orderedUrls) {
+		const ref = deduped.get(u);
+		if (ref) ordered.push(ref);
+	}
 	return cap !== undefined ? ordered.slice(0, cap) : ordered;
 }
 

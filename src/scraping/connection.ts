@@ -78,12 +78,16 @@ export async function readActionSignals(username: string): Promise<ActionSignals
 						const buttons = el.querySelectorAll("button");
 						const labeled = el.querySelectorAll("button[aria-label]");
 						const expanders = el.querySelectorAll("button[aria-expanded]");
+						const exp0 = expanders[0];
+						const lab1 = labeled[1];
 						if (
 							buttons.length === 3 &&
 							labeled.length === 2 &&
 							expanders.length === 1 &&
-							!expanders[0]!.hasAttribute("aria-label") &&
-							expanders[0]!.compareDocumentPosition(labeled[1]!) & Node.DOCUMENT_POSITION_PRECEDING &&
+							exp0 &&
+							lab1 &&
+							!exp0.hasAttribute("aria-label") &&
+							exp0.compareDocumentPosition(lab1) & Node.DOCUMENT_POSITION_PRECEDING &&
 							!el.querySelector('a[href*="/messaging/compose/"]') &&
 							!el.querySelector('a[href*="/preload/custom-invite/"]') &&
 							!el.querySelector("a[aria-label]")
@@ -95,7 +99,7 @@ export async function readActionSignals(username: string): Promise<ActionSignals
 					el = el.parentElement;
 				}
 			}
-			return matches.length === 1 ? matches[0]! : null;
+			return matches.length === 1 ? (matches[0] ?? null) : null;
 		}
 
 		const main = document.querySelector("main");
