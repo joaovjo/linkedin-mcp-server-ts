@@ -6,6 +6,30 @@
       "sourceType": "github",
       "skillPath": "skills/conventional-branch/SKILL.md",
       "computedHash": "3c4c01c4ae20b6fe66888d552ed7dd99c83118266ec1237c9ed881f16ac53db9"
+    },
+    "e2e": {
+      "source": "alleneubank/claude-code",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/e2e/SKILL.md",
+      "computedHash": "bd5cff70720600bf7a0f80f3fdf4ceaf35cd7a946c4a9220ae46c039dd8951a4"
+    },
+    "improve": {
+      "source": "alleneubank/claude-code",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/improve/SKILL.md",
+      "computedHash": "2ad577bdd3f5006a71128e43b5a19627c0d3e7d8962929ce8b0aa6325aa39a48"
+    },
+    "testing-best-practices": {
+      "source": "alleneubank/claude-code",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/testing-best-practices/SKILL.md",
+      "computedHash": "d6d5ea1a045bc3cbecc3bf7a052c87146ceb5cace3854a2d16d32e713c72fd57"
+    },
+    "typescript-best-practices": {
+      "source": "alleneubank/claude-code",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/typescript-best-practices/SKILL.md",
+      "computedHash": "b73b69197553b711e02839015e6abca717eb2305e90de3cc86403c92d92b00d9"
     }
   }
 }
