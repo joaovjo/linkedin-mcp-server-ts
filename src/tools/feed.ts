@@ -1,12 +1,9 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { AppConfig } from "../config.ts";
+import { z } from "zod";
+import { cdp, enableNetwork, listenNetworkResponses } from "../browser/cdp.ts";
 import { browserManager } from "../browser/manager.ts";
-import {
-	cdp,
-	enableNetwork,
-	listenNetworkResponses,
-} from "../browser/cdp.ts";
+import type { AppConfig } from "../config.ts";
+import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	getCurrentUrl,
 	getMainInnerText,
@@ -14,11 +11,7 @@ import {
 	stripLinkedinNoise,
 } from "../scraping/extractor.ts";
 import { LINKEDIN_BASE } from "../scraping/fields.ts";
-import {
-	buildFeedReferences,
-	classifyLink,
-} from "../scraping/references.ts";
-import { extractRootContent } from "../scraping/dom-extract.ts";
+import { buildFeedReferences, classifyLink } from "../scraping/references.ts";
 import {
 	applySectionText,
 	isRateLimitedText,
@@ -61,8 +54,7 @@ export function registerFeedTools(server: McpServer, config: AppConfig): void {
 		"get_feed",
 		{
 			title: "Get Feed",
-			description:
-				"Get posts from the authenticated user's LinkedIn home feed",
+			description: "Get posts from the authenticated user's LinkedIn home feed",
 			inputSchema: z.object({
 				num_posts: z.number().int().min(1).max(50).optional().default(10),
 			}),

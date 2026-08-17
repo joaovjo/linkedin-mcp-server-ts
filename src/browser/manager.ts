@@ -1,17 +1,14 @@
 import type { AppConfig } from "../config.ts";
 import { BrowserSetupFailedError } from "../errors/types.ts";
+import type { CookieRecord } from "../session/store.ts";
+import { ensureSessionDirs, webViewProfilePath } from "../session/store.ts";
 import {
-	ensureSessionDirs,
-	webViewProfilePath,
-} from "../session/store.ts";
-import {
+	type CdpView,
 	enableNetwork,
 	getAllCookies,
 	setCookies,
 	setUserAgent,
-	type CdpView,
 } from "./cdp.ts";
-import type { CookieRecord } from "../session/store.ts";
 import type { BrowserState } from "./types.ts";
 
 type Modifier = "Shift" | "Control" | "Alt" | "Meta";
@@ -195,7 +192,10 @@ class BrowserManager {
 
 	async scrollTo(
 		selector: string,
-		options?: { block?: "start" | "center" | "end" | "nearest"; timeout?: number },
+		options?: {
+			block?: "start" | "center" | "end" | "nearest";
+			timeout?: number;
+		},
 	): Promise<void> {
 		await this.getView().scrollTo(selector, options as never);
 	}
@@ -239,7 +239,10 @@ class BrowserManager {
 	}
 
 	async getCurrentUrl(): Promise<string> {
-		return this.getView().url || (await this.evaluate<string>("window.location.href"));
+		return (
+			this.getView().url ||
+			(await this.evaluate<string>("window.location.href"))
+		);
 	}
 
 	async getAllTexts(selector: string): Promise<string[]> {

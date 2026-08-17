@@ -1,7 +1,7 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { AppConfig } from "../config.ts";
+import { z } from "zod";
 import { browserManager } from "../browser/manager.ts";
+import type { AppConfig } from "../config.ts";
 import { raiseToolError } from "../errors/handler.ts";
 import { serializationQueue } from "../middleware/serialization.ts";
 import { toolJson } from "./helpers.ts";

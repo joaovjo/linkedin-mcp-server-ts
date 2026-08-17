@@ -1,3 +1,8 @@
+import type { McpServer } from "@modelcontextprotocol/server";
+import { z } from "zod";
+import { browserManager } from "../browser/manager.ts";
+import type { AppConfig } from "../config.ts";
+import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	getCurrentUrl,
 	scrollToBottom,
@@ -5,17 +10,12 @@ import {
 } from "../scraping/extractor.ts";
 import { LINKEDIN_BASE } from "../scraping/fields.ts";
 import { buildReferences } from "../scraping/references.ts";
-import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	applySectionText,
 	filterValidationError,
 	type SectionErrorInfo,
 } from "../scraping/section-result.ts";
 import { toolJson, wrapTool } from "./helpers.ts";
-import { browserManager } from "../browser/manager.ts";
-import type { AppConfig } from "../config.ts";
-import type { McpServer } from "@modelcontextprotocol/server";
-import { z } from "zod";
 
 const DATE_MAP: Record<string, string> = {
 	"past-24h": "past-24h",

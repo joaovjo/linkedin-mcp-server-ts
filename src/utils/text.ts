@@ -22,11 +22,7 @@ const UI_ELEMENT_PATTERNS = [
 	/^…$/m,
 ];
 
-const WHITESPACE_PATTERNS = [
-	/\n{3,}/g,
-	/[ \t]{2,}/g,
-	/\r/g,
-];
+const WHITESPACE_PATTERNS = [/\n{3,}/g, /[ \t]{2,}/g, /\r/g];
 
 export function stripLinkedinNoise(text: string): string {
 	let cleaned = text;
@@ -89,7 +85,8 @@ export function extractEmails(text: string): string[] {
 }
 
 export function extractPhoneNumbers(text: string): string[] {
-	const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+	const phoneRegex =
+		/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
 	const matches = text.match(phoneRegex);
 	return matches ? [...new Set(matches)] : [];
 }
@@ -113,9 +110,7 @@ export function normalizeWhitespace(text: string): string {
 }
 
 export function splitIntoSentences(text: string): string[] {
-	return text
-		.split(/(?<=[.!?])\s+/)
-		.filter((s) => s.trim().length > 0);
+	return text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
 }
 
 export function highlightKeywords(text: string, keywords: string[]): string {

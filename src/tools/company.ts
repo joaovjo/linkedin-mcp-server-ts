@@ -1,7 +1,8 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { AppConfig } from "../config.ts";
+import { z } from "zod";
 import { browserManager } from "../browser/manager.ts";
+import type { AppConfig } from "../config.ts";
+import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	extractCompanyProfile,
 	extractSection,
@@ -15,7 +16,6 @@ import {
 	extractProfileReferences,
 	type Reference,
 } from "../scraping/references.ts";
-import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	applySectionText,
 	type SectionErrorInfo,
@@ -24,7 +24,10 @@ import { toolJson, wrapTool } from "./helpers.ts";
 
 const COMPANY_SECTION_NAMES = new Set(Object.keys(COMPANY_SECTIONS));
 
-export function registerCompanyTools(server: McpServer, config: AppConfig): void {
+export function registerCompanyTools(
+	server: McpServer,
+	config: AppConfig,
+): void {
 	server.registerTool(
 		"get_company_profile",
 		{

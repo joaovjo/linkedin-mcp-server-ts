@@ -209,7 +209,9 @@ export async function performLogin(config: AppConfig): Promise<void> {
 export async function performLogout(config: AppConfig): Promise<void> {
 	await clearSession(config.userDataDir);
 	await browserManager.close();
-	console.error("✓ Session cleared (cookies.json / source-state.json removed).");
+	console.error(
+		"✓ Session cleared (cookies.json / source-state.json removed).",
+	);
 }
 
 export async function performStatus(config: AppConfig): Promise<number> {

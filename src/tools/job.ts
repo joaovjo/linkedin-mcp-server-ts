@@ -1,7 +1,8 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { AppConfig } from "../config.ts";
+import { z } from "zod";
 import { browserManager } from "../browser/manager.ts";
+import type { AppConfig } from "../config.ts";
+import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	extractJobIds,
 	getCurrentUrl,
@@ -14,7 +15,6 @@ import {
 	dedupeReferences,
 	type Reference,
 } from "../scraping/references.ts";
-import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	applySectionText,
 	isRateLimitedText,
@@ -155,9 +155,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 
 				for (let pageNum = 0; pageNum < maxPages; pageNum++) {
 					const pageUrl =
-						pageNum === 0
-							? baseUrl
-							: `${baseUrl}&start=${pageNum * PAGE_SIZE}`;
+						pageNum === 0 ? baseUrl : `${baseUrl}&start=${pageNum * PAGE_SIZE}`;
 					await browserManager.navigate(pageUrl);
 					await Bun.sleep(1200);
 					await scrollJobSidebar(5, 500);

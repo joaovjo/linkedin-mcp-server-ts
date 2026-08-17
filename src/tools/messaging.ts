@@ -1,7 +1,14 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { AppConfig } from "../config.ts";
+import { z } from "zod";
 import { browserManager } from "../browser/manager.ts";
+import type { AppConfig } from "../config.ts";
+import { LinkedInScraperException } from "../errors/types.ts";
+import {
+	extractConversationThreadRefs,
+	readProfileDisplayName,
+	resolveConversationThreadUrls,
+} from "../scraping/conversation-refs.ts";
+import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	getCurrentUrl,
 	scrollMainScrollable,
@@ -9,18 +16,11 @@ import {
 } from "../scraping/extractor.ts";
 import { LINKEDIN_BASE } from "../scraping/fields.ts";
 import { buildReferences, classifyLink } from "../scraping/references.ts";
-import { extractRootContent } from "../scraping/dom-extract.ts";
-import {
-	extractConversationThreadRefs,
-	readProfileDisplayName,
-	resolveConversationThreadUrls,
-} from "../scraping/conversation-refs.ts";
 import {
 	applySectionText,
 	isRateLimitedText,
 	type SectionErrorInfo,
 } from "../scraping/section-result.ts";
-import { LinkedInScraperException } from "../errors/types.ts";
 import { toolJson, wrapTool } from "./helpers.ts";
 
 function messageResult(
@@ -47,7 +47,8 @@ export function registerMessagingTools(
 		"get_inbox",
 		{
 			title: "Get Inbox",
-			description: "List recent conversations from the LinkedIn messaging inbox",
+			description:
+				"List recent conversations from the LinkedIn messaging inbox",
 			inputSchema: z.object({
 				limit: z.number().int().min(1).max(50).optional().default(20),
 			}),
@@ -62,7 +63,12 @@ export function registerMessagingTools(
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(sections, sectionErrors, "inbox", stripLinkedinNoise(raw.text));
+				applySectionText(
+					sections,
+					sectionErrors,
+					"inbox",
+					stripLinkedinNoise(raw.text),
+				);
 
 				const limit = args.limit ?? 20;
 				const conversationRefs = !isRateLimitedText(raw.text)
@@ -121,8 +127,7 @@ export function registerMessagingTools(
 							`Could not resolve a display name for ${username}.`,
 						);
 					}
-					const threadUrls =
-						await resolveConversationThreadUrls(displayName);
+					const threadUrls = await resolveConversationThreadUrls(displayName);
 					if (!threadUrls.length) {
 						throw new LinkedInScraperException(
 							`Could not find a conversation for ${username}.`,

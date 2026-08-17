@@ -23,15 +23,9 @@ export async function extractConversationThreadRefs(
 		(await browserManager.evaluate<
 			Array<{ index: number; ariaLabel: string; name: string }>
 		>((filter: string | null) => {
-			const wanted = (filter || "")
-				.replace(/\s+/g, " ")
-				.trim()
-				.toLowerCase();
-			const nodes = [
-				...document.querySelectorAll("main li label[aria-label]"),
-			];
-			const out: Array<{ index: number; ariaLabel: string; name: string }> =
-				[];
+			const wanted = (filter || "").replace(/\s+/g, " ").trim().toLowerCase();
+			const nodes = [...document.querySelectorAll("main li label[aria-label]")];
+			const out: Array<{ index: number; ariaLabel: string; name: string }> = [];
 			nodes.forEach((label, index) => {
 				const ariaLabel = label.getAttribute("aria-label") || "";
 				const name = ariaLabel
@@ -59,9 +53,7 @@ export async function extractConversationThreadRefs(
 			const label = labels[idx];
 			if (!label) return false;
 			const clickTarget =
-				label
-					.closest("li")
-					?.querySelector('div[class*="listitem__link"]') ||
+				label.closest("li")?.querySelector('div[class*="listitem__link"]') ||
 				label.closest("li") ||
 				label;
 			(clickTarget as HTMLElement).click();

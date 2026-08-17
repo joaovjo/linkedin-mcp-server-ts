@@ -1,6 +1,6 @@
-import { parseArgs } from "node:util";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 
 export interface AppConfig {
 	host: string;
@@ -114,12 +114,11 @@ export function loadConfig(args: string[] = Bun.argv.slice(2)): AppConfig {
 	else if (parsed.values.status) mode = "status";
 	else if (parsed.values["import-from-browser"] !== undefined) mode = "import";
 
-	const autoImport =
-		parsed.values["no-auto-import"]
-			? false
-			: parsed.values["auto-import"]
-				? true
-				: envBool("AUTO_IMPORT_FROM_BROWSER", true);
+	const autoImport = parsed.values["no-auto-import"]
+		? false
+		: parsed.values["auto-import"]
+			? true
+			: envBool("AUTO_IMPORT_FROM_BROWSER", true);
 
 	const loginInlineWait = Math.min(
 		45,

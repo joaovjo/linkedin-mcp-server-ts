@@ -10,7 +10,9 @@ export interface SectionErrorInfo {
 
 export function isRateLimitedText(text: string | undefined | null): boolean {
 	if (!text) return false;
-	return text === RATE_LIMITED_MSG || text.toLowerCase().includes("rate limited");
+	return (
+		text === RATE_LIMITED_MSG || text.toLowerCase().includes("rate limited")
+	);
 }
 
 /** Apply Python-style section envelope: RL goes to section_errors, not sections. */

@@ -1,8 +1,8 @@
 import { browserManager } from "../browser/manager.ts";
 import {
+	type ActionSignals,
 	detectConnectionState,
 	readActionSignals,
-	type ActionSignals,
 } from "./connection.ts";
 import { extractPersonProfile } from "./extractor.ts";
 
@@ -97,14 +97,13 @@ async function dismissDialog(): Promise<void> {
 			'dialog[open] button[aria-label*="Dismiss"], [role="dialog"] button[aria-label*="Dismiss"], dialog[open] button[aria-label*="Close"], [role="dialog"] button[aria-label*="Close"]',
 		) as HTMLButtonElement | null;
 		if (btn) btn.click();
-		else document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+		else
+			document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 	});
 	await Bun.sleep(300);
 }
 
-async function submitInviteDialog(
-	note?: string,
-): Promise<{
+async function submitInviteDialog(note?: string): Promise<{
 	submitted: boolean;
 	note_sent: boolean;
 	note_limit_message: string | null;

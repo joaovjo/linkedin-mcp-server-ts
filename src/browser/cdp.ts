@@ -60,9 +60,7 @@ export async function setCookies(
 	}
 }
 
-function mapSameSite(
-	value: unknown,
-): CookieRecord["sameSite"] | undefined {
+function mapSameSite(value: unknown): CookieRecord["sameSite"] | undefined {
 	const s = String(value ?? "");
 	if (s === "Strict" || s === "Lax" || s === "None") return s;
 	if (s === "strict") return "Strict";
@@ -76,9 +74,11 @@ export function listenNetworkResponses(
 	onResponse: (url: string, status: number) => void,
 ): () => void {
 	const listener = (event: Event) => {
-		const data = (event as CustomEvent & { data?: { response?: { url?: string; status?: number } } }).data as
-			| { response?: { url?: string; status?: number } }
-			| undefined;
+		const data = (
+			event as CustomEvent & {
+				data?: { response?: { url?: string; status?: number } };
+			}
+		).data as { response?: { url?: string; status?: number } } | undefined;
 		if (!data?.response?.url) return;
 		onResponse(data.response.url, data.response.status ?? 0);
 	};

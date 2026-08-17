@@ -50,7 +50,8 @@ export function buildPeopleSearchUrl(params: {
 	if (params.network) {
 		searchParams.append("network", JSON.stringify(params.network));
 	}
-	if (params.currentCompany) searchParams.append("currentCompany", params.currentCompany);
+	if (params.currentCompany)
+		searchParams.append("currentCompany", params.currentCompany);
 	return `${LINKEDIN_BASE}/search/results/people/?${searchParams.toString()}`;
 }
 
@@ -81,10 +82,14 @@ export function buildJobsSearchUrl(params: {
 	};
 
 	if (params.datePosted) {
-		searchParams.append("f_TPR", DATE_POSTED_MAP[params.datePosted] ?? params.datePosted);
+		searchParams.append(
+			"f_TPR",
+			DATE_POSTED_MAP[params.datePosted] ?? params.datePosted,
+		);
 	}
 	if (params.jobType) searchParams.append("f_JT", params.jobType);
-	if (params.experienceLevel) searchParams.append("f_E", params.experienceLevel);
+	if (params.experienceLevel)
+		searchParams.append("f_E", params.experienceLevel);
 	if (params.workType) searchParams.append("f_WT", params.workType);
 	if (params.easyApply) searchParams.append("f_AL", "true");
 	if (params.sortBy) {
@@ -94,7 +99,10 @@ export function buildJobsSearchUrl(params: {
 	return `${LINKEDIN_BASE}/jobs/search/?${searchParams.toString()}`;
 }
 
-export function buildMessagingUrl(threadId?: string, recipientUrn?: string): string {
+export function buildMessagingUrl(
+	threadId?: string,
+	recipientUrn?: string,
+): string {
 	if (threadId) {
 		return `${LINKEDIN_BASE}/messaging/thread/${threadId}/`;
 	}

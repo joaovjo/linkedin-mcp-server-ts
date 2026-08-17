@@ -91,10 +91,8 @@ export async function readActionSignals(
 								labeled.length === 2 &&
 								expanders.length === 1 &&
 								!expanders[0]!.hasAttribute("aria-label") &&
-								!!(
-									expanders[0]!.compareDocumentPosition(labeled[1]!) &
-									Node.DOCUMENT_POSITION_PRECEDING
-								) &&
+								expanders[0]!.compareDocumentPosition(labeled[1]!) &
+									Node.DOCUMENT_POSITION_PRECEDING &&
 								!el.querySelector('a[href*="/messaging/compose/"]') &&
 								!el.querySelector('a[href*="/preload/custom-invite/"]') &&
 								!el.querySelector("a[aria-label]")

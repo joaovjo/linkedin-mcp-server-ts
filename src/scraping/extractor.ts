@@ -5,10 +5,7 @@ import {
 	extractRootContent,
 } from "./dom-extract.ts";
 import { LINKEDIN_BASE, type SectionDef } from "./fields.ts";
-import {
-	buildReferences,
-	type Reference,
-} from "./link-metadata.ts";
+import { buildReferences, type Reference } from "./link-metadata.ts";
 
 const NAV_DELAY = 2_000;
 const RATE_LIMITED_MSG =
@@ -51,8 +48,7 @@ export async function extractSection(
 			await clickShowMore(maxScrolls ?? 5);
 		}
 
-		const scrolls =
-			maxScrolls ?? (isActivity ? 10 : 5);
+		const scrolls = maxScrolls ?? (isActivity ? 10 : 5);
 		if (isActivity) {
 			await scrollToBottom(scrolls, 1000);
 		} else if (!isDetails) {
@@ -183,7 +179,8 @@ export async function clickShowMore(maxClicks: number): Promise<number> {
 			});
 			if (!target) return false;
 			const style = window.getComputedStyle(target);
-			if (style.display === "none" || style.visibility === "hidden") return false;
+			if (style.display === "none" || style.visibility === "hidden")
+				return false;
 			target.scrollIntoView({ block: "center" });
 			target.click();
 			return true;
@@ -274,8 +271,7 @@ export async function scrollJobSidebar(
 					},
 				) as HTMLElement[];
 				target =
-					candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ??
-					null;
+					candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ?? null;
 			}
 			if (!target) {
 				window.scrollBy(0, 1200);

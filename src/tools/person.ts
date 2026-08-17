@@ -1,7 +1,9 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { AppConfig } from "../config.ts";
+import { z } from "zod";
 import { browserManager } from "../browser/manager.ts";
+import type { AppConfig } from "../config.ts";
+import { connectWithPerson } from "../scraping/connection-actions.ts";
+import { extractRootContent } from "../scraping/dom-extract.ts";
 import {
 	extractPersonProfile,
 	extractSection,
@@ -9,14 +11,12 @@ import {
 	getPersonProfileUrn,
 	stripLinkedinNoise,
 } from "../scraping/extractor.ts";
-import { PERSON_SECTIONS, LINKEDIN_BASE } from "../scraping/fields.ts";
+import { LINKEDIN_BASE, PERSON_SECTIONS } from "../scraping/fields.ts";
 import {
 	buildReferences,
 	extractSidebarProfiles,
 	type Reference,
 } from "../scraping/references.ts";
-import { extractRootContent } from "../scraping/dom-extract.ts";
-import { connectWithPerson } from "../scraping/connection-actions.ts";
 import {
 	applySectionText,
 	filterValidationError,
@@ -27,7 +27,10 @@ import { toolJson, wrapTool } from "./helpers.ts";
 const PERSON_SECTION_NAMES = new Set(Object.keys(PERSON_SECTIONS));
 const NETWORK_TOKENS = new Set(["F", "S", "O"]);
 
-export function registerPersonTools(server: McpServer, config: AppConfig): void {
+export function registerPersonTools(
+	server: McpServer,
+	config: AppConfig,
+): void {
 	server.registerTool(
 		"get_person_profile",
 		{
@@ -38,7 +41,9 @@ export function registerPersonTools(server: McpServer, config: AppConfig): void 
 			inputSchema: z.object({
 				linkedin_username: z
 					.string()
-					.describe('LinkedIn username (e.g., "stickerdaniel", "williamhgates")'),
+					.describe(
+						'LinkedIn username (e.g., "stickerdaniel", "williamhgates")',
+					),
 				sections: z
 					.string()
 					.optional()
@@ -164,10 +169,7 @@ export function registerPersonTools(server: McpServer, config: AppConfig): void 
 					params.set("network", JSON.stringify(args.network));
 				}
 				if (args.current_company) {
-					params.set(
-						"currentCompany",
-						JSON.stringify([args.current_company]),
-					);
+					params.set("currentCompany", JSON.stringify([args.current_company]));
 				}
 				const url = `${LINKEDIN_BASE}/search/results/people/?${params}`;
 				await browserManager.navigate(url);

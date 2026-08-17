@@ -2,15 +2,18 @@ import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { loadConfig } from "../src/config.ts";
 import { createMcpServer } from "../src/mcp/create-server.ts";
+import {
+	type ActionSignals,
+	detectConnectionState,
+} from "../src/scraping/connection.ts";
 import { stripLinkedinNoise } from "../src/scraping/extractor.ts";
 import {
+	buildFeedReferences,
+	buildReferences,
 	classifyLink,
 	firstCompanyUrnFromQuery,
 	normalizeUrl,
-	buildReferences,
-	buildFeedReferences,
 } from "../src/scraping/link-metadata.ts";
-import { detectConnectionState, type ActionSignals } from "../src/scraping/connection.ts";
 import {
 	applySectionText,
 	normalizeCsv,
@@ -180,9 +183,9 @@ describe("link-metadata", () => {
 			],
 			"main_profile",
 		);
-		expect(refs.some((r) => r.kind === "person" && r.url === "/in/alice/")).toBe(
-			true,
-		);
+		expect(
+			refs.some((r) => r.kind === "person" && r.url === "/in/alice/"),
+		).toBe(true);
 		expect(
 			refs.some((r) => r.kind === "company" && r.url === "/company/docker/"),
 		).toBe(true);
@@ -209,9 +212,9 @@ describe("connection state machine", () => {
 	};
 
 	test("invite anchor => connectable", () => {
-		expect(
-			detectConnectionState({ ...base, has_invite_anchor: true }),
-		).toBe("connectable");
+		expect(detectConnectionState({ ...base, has_invite_anchor: true })).toBe(
+			"connectable",
+		);
 	});
 
 	test("compose without labeled button => already_connected", () => {
@@ -262,9 +265,9 @@ describe("search_people location param", () => {
 
 describe("job filters", () => {
 	test("maps job_type / experience / work_type / f_EA", () => {
-		expect(normalizeCsv("full_time,remote", { full_time: "F", remote: "2" })).toBe(
-			"F,2",
-		);
+		expect(
+			normalizeCsv("full_time,remote", { full_time: "F", remote: "2" }),
+		).toBe("F,2");
 		const params = new URLSearchParams();
 		params.set("f_EA", "true");
 		expect(params.get("f_EA")).toBe("true");
@@ -275,8 +278,10 @@ describe("job filters", () => {
 describe("section_errors envelope", () => {
 	test("rate-limit goes to section_errors not sections", () => {
 		const sections: Record<string, string> = {};
-		const errors: Record<string, { error_type: string; error_message: string }> =
-			{};
+		const errors: Record<
+			string,
+			{ error_type: string; error_message: string }
+		> = {};
 		applySectionText(sections, errors, "about", RATE_LIMITED_MSG);
 		expect(sections.about).toBeUndefined();
 		expect(errors.about?.error_type).toBe("rate_limited");

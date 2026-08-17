@@ -1,17 +1,17 @@
 /** Compatibility wrappers around link-metadata (Python-aligned schema). */
 
 export {
-	type Reference,
-	type ReferenceKind,
-	type RawReference,
-	buildReferences,
 	buildFeedReferences,
+	buildReferences,
 	classifyLink,
-	normalizeUrl,
 	dedupeReferences,
 	firstCompanyUrnFromQuery,
 	jobIdFromUrl,
+	normalizeUrl,
+	type RawReference,
 	REFERENCE_CAPS,
+	type Reference,
+	type ReferenceKind,
 } from "./link-metadata";
 
 import { browserManager } from "../browser/manager.ts";
@@ -113,8 +113,7 @@ export async function extractSidebarProfiles(): Promise<
 		for (const wanted of HEADINGS) {
 			const h = headings.find(
 				(el) =>
-					(el.textContent || "").trim().toLowerCase() ===
-					wanted.toLowerCase(),
+					(el.textContent || "").trim().toLowerCase() === wanted.toLowerCase(),
 			);
 			if (!h) continue;
 			let section: Element | null = h.closest("section, aside, div");

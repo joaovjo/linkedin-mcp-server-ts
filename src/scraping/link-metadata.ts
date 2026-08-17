@@ -122,9 +122,14 @@ function isLinkedInChrome(path: string): boolean {
 	const first = segments[0]!;
 	const second = segments[1] ?? "";
 	if (
-		["help", "legal", "about", "accessibility", "mypreferences", "preferences"].includes(
-			first,
-		)
+		[
+			"help",
+			"legal",
+			"about",
+			"accessibility",
+			"mypreferences",
+			"preferences",
+		].includes(first)
 	) {
 		return true;
 	}
@@ -258,7 +263,7 @@ export function cleanLabel(value: string, kind: ReferenceKind): string | null {
 	value = value.replace(/^(?:View:\s*|View\b\s+|Open article:\s*)/i, "");
 	value = value.replace(/[’']s\s+graphic link$/i, "");
 	value = value.replace(/\s+graphic link$/i, "");
-	value = value.replace(/^[\s:\-]+|[\s:\-]+$/g, "");
+	value = value.replace(/^[\s:-]+|[\s:-]+$/g, "");
 
 	if (value.includes(" by ") && (kind === "article" || kind === "external")) {
 		value = value.split(" by ", 1)[0]!.trim();

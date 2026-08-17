@@ -60,7 +60,12 @@ export function readDevToolsActivePortWsUrl(
 	userDataRoots: string[] = [
 		join(process.env.LOCALAPPDATA ?? "", "Google", "Chrome", "User Data"),
 		join(process.env.LOCALAPPDATA ?? "", "Microsoft", "Edge", "User Data"),
-		join(process.env.LOCALAPPDATA ?? "", "BraveSoftware", "Brave-Browser", "User Data"),
+		join(
+			process.env.LOCALAPPDATA ?? "",
+			"BraveSoftware",
+			"Brave-Browser",
+			"User Data",
+		),
 	],
 ): string | null {
 	for (const root of userDataRoots) {
