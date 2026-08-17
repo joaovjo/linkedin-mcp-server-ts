@@ -1,0 +1,13 @@
+{
+    "mcpServers": {
+        "context7": {
+            "serverUrl": "https://mcp.context7.com/mcp"
+        },
+        "deepwiki": {
+            "serverUrl": "https://mcp.deepwiki.com/mcp"
+        },
+        "bun-mcp": {
+            "serverUrl": "https://bun.com/docs/mcp"
+        }
+    }
+}
