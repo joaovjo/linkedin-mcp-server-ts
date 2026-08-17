@@ -84,6 +84,14 @@ describe("Unit: session-store", () => {
 	});
 
 	test("sessionLooksReady returns true when required session cookies and state are present", async () => {
+		await writeCookies(userDataDir, [{ name: "li_at", value: "valid_session_token", domain: ".linkedin.com", path: "/" }]);
+		await writeSourceState(userDataDir, {
+			runtime_id: "test-runtime-ready",
+			login_generation: 1,
+			updated_at: new Date().toISOString(),
+			backend: "bun-webview-chrome",
+		});
+
 		const isReady = await sessionLooksReady(userDataDir);
 		expect(isReady).toBe(true);
 	});

@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { browserManager } from "../../src/browser/manager.ts";
 import { loadConfig } from "../../src/config.ts";
+import { createMcpServer } from "../../src/mcp/create-server.ts";
 import { writeCookies, writeSourceState } from "../../src/session/store.ts";
-import { toolJson, wrapTool } from "../../src/tools/helpers.ts";
-import { DOM_PROFILE_HTML } from "../fixtures/dom-samples.ts";
+import type { ToolContentResult } from "../../src/tools/helpers.ts";
 
 describe("E2E: Hermetic Tools Execution", () => {
 	let tempDir: string;
@@ -64,13 +64,27 @@ describe("E2E: Hermetic Tools Execution", () => {
 				path: "/",
 			},
 		];
-		browserManager.evaluate = async (script: unknown) => {
+		browserManager.evaluate = async (script: unknown, ..._args: unknown[]) => {
+			if (typeof script === "function") {
+				return {
+					text: "Jane Doe\nSenior Software Engineer at Acme Corp\nSan Francisco, California\nAbout\nAcme Corp is a leading technology company transforming developer infrastructure.",
+					references: [
+						{
+							href: "https://www.linkedin.com/company/acme-corp/",
+							text: "Acme Corp",
+							aria_label: "",
+							title: "",
+							heading: "Experience",
+							in_article: false,
+							in_nav: false,
+							in_footer: false,
+						},
+					],
+				} as never;
+			}
 			const s = String(script);
 			if (s.includes("global-nav")) return true as never;
 			if (s.includes("window.location.href")) return "https://www.linkedin.com/in/janedoe/" as never;
-			if (s.includes("document.body.innerText") || s.includes("document.body.textContent")) {
-				return DOM_PROFILE_HTML as never;
-			}
 			return true as never;
 		};
 	});
@@ -93,22 +107,15 @@ describe("E2E: Hermetic Tools Execution", () => {
 	test("executes get_person_profile hermetic flow and produces structured envelope", async () => {
 		const config = loadConfig(["--transport", "stdio", "--user-data-dir", userDataDir, "--login-inline-wait", "0"]);
 
-		const result = await wrapTool(config, async () => {
-			return toolJson({
-				url: await browserManager.getCurrentUrl(),
-				sections: {
-					main_profile: "Jane Doe\nSenior Software Engineer at Acme Corp",
-				},
-				references: {
-					main_profile: [
-						{
-							kind: "company",
-							url: "/company/acme-corp/",
-							context: "main_profile",
-						},
-					],
-				},
-			});
+		const server = createMcpServer(config);
+		const registered = (
+			server as unknown as {
+				_registeredTools: Record<string, { handler: (args: Record<string, unknown>) => Promise<ToolContentResult> }>;
+			}
+		)._registeredTools;
+
+		const result = await registered.get_person_profile.handler({
+			linkedin_username: "janedoe",
 		});
 
 		expect(result.isError).toBeUndefined();
@@ -121,30 +128,48 @@ describe("E2E: Hermetic Tools Execution", () => {
 		expect(parsed.references.main_profile[0].kind).toBe("company");
 	});
 
-	test("executes company extraction flow hermetically", async () => {
+	test("executes get_company_profile hermetic flow and produces structured envelope", async () => {
 		const config = loadConfig(["--transport", "stdio", "--user-data-dir", userDataDir, "--login-inline-wait", "0"]);
+		browserManager.getCurrentUrl = async () => "https://www.linkedin.com/company/acme-corp/about/";
 
-		const result = await wrapTool(config, async () => {
-			return toolJson({
-				url: "https://www.linkedin.com/company/acme-corp/about/",
-				sections: {
-					about: "Acme Corp\nBuilding modern developer infrastructure.\n1,001-5,000 employees",
-				},
-				company_urn: "123456",
-			});
+		const server = createMcpServer(config);
+		const registered = (
+			server as unknown as {
+				_registeredTools: Record<string, { handler: (args: Record<string, unknown>) => Promise<ToolContentResult> }>;
+			}
+		)._registeredTools;
+
+		const result = await registered.get_company_profile.handler({
+			company_name: "acme-corp",
 		});
 
+		expect(result.isError).toBeUndefined();
+		expect(result.content).toHaveLength(1);
 		const parsed = JSON.parse(result.content[0]?.text ?? "{}");
-		expect(parsed.company_urn).toBe("123456");
+		expect(parsed.url).toContain("acme-corp");
 		expect(parsed.sections.about).toContain("Acme Corp");
 	});
 
 	test("handles tool errors hermetically without crashing server", async () => {
 		const config = loadConfig(["--transport", "stdio", "--user-data-dir", userDataDir, "--login-inline-wait", "0"]);
 
-		const result = await wrapTool(config, async () => {
+		const origGetUrl = browserManager.getCurrentUrl;
+		browserManager.getCurrentUrl = async () => {
 			throw new Error("Simulated network timeout");
+		};
+
+		const server = createMcpServer(config);
+		const registered = (
+			server as unknown as {
+				_registeredTools: Record<string, { handler: (args: Record<string, unknown>) => Promise<ToolContentResult> }>;
+			}
+		)._registeredTools;
+
+		const result = await registered.get_person_profile.handler({
+			linkedin_username: "janedoe",
 		});
+
+		browserManager.getCurrentUrl = origGetUrl;
 
 		expect(result.isError).toBe(true);
 		expect(result.content[0]?.text).toContain("Unexpected error: Simulated network timeout");

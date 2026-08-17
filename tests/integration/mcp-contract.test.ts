@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { z } from "zod";
+import type { z } from "zod";
 import { loadConfig } from "../../src/config.ts";
 import { createMcpServer } from "../../src/mcp/create-server.ts";
 
@@ -28,9 +28,13 @@ const EXPECTED_TOOLS = [
 describe("Integration: MCP Server Contract", () => {
 	const config = loadConfig(["--transport", "stdio"]);
 	const server = createMcpServer(config);
+	const registered = (
+		server as unknown as {
+			_registeredTools: Record<string, { inputSchema: z.ZodTypeAny; handler: (args: unknown) => Promise<unknown> }>;
+		}
+	)._registeredTools;
 
 	test("registers all 19 required tools with MCP server", () => {
-		const registered = (server as unknown as { _registeredTools: Record<string, unknown> })._registeredTools;
 		const toolNames = Object.keys(registered);
 		for (const name of EXPECTED_TOOLS) {
 			expect(toolNames).toContain(name);
@@ -38,30 +42,24 @@ describe("Integration: MCP Server Contract", () => {
 		expect(toolNames.length).toBe(19);
 	});
 
-	test("person profile input schema validates parameters", () => {
-		const schema = z.object({
-			linkedin_username: z.string(),
-			sections: z.string().optional(),
-			max_scrolls: z.number().int().min(1).max(50).optional(),
-		});
+	test("person profile input schema validates parameters from registered tool", () => {
+		const schema = registered.get_person_profile?.inputSchema;
+		expect(schema).toBeDefined();
 
-		expect(schema.parse({ linkedin_username: "satyanadella" })).toEqual({
+		expect(schema?.parse({ linkedin_username: "satyanadella" })).toEqual({
 			linkedin_username: "satyanadella",
 		});
-		expect(() => schema.parse({ linkedin_username: 123 })).toThrow();
-		expect(() => schema.parse({ linkedin_username: "a", max_scrolls: 100 })).toThrow();
+		expect(() => schema?.parse({ linkedin_username: 123 })).toThrow();
+		expect(() => schema?.parse({ linkedin_username: "a", max_scrolls: 100 })).toThrow();
 	});
 
-	test("send_message requires confirm_send flag", () => {
-		const schema = z.object({
-			linkedin_username: z.string(),
-			message: z.string(),
-			confirm_send: z.boolean(),
-		});
+	test("send_message requires confirm_send flag from registered tool", () => {
+		const schema = registered.send_message?.inputSchema;
+		expect(schema).toBeDefined();
 
-		expect(() => schema.parse({ linkedin_username: "alice", message: "Hi" })).toThrow();
+		expect(() => schema?.parse({ linkedin_username: "alice", message: "Hi" })).toThrow();
 		expect(
-			schema.parse({
+			schema?.parse({
 				linkedin_username: "alice",
 				message: "Hi",
 				confirm_send: false,
@@ -73,48 +71,39 @@ describe("Integration: MCP Server Contract", () => {
 		});
 	});
 
-	test("connect_with_person input schema supports custom note and confirm_send", () => {
-		const schema = z.object({
-			linkedin_username: z.string(),
-			custom_note: z.string().max(300).optional(),
-			confirm_send: z.boolean().optional(),
-		});
+	test("connect_with_person input schema supports note from registered tool", () => {
+		const schema = registered.connect_with_person?.inputSchema;
+		expect(schema).toBeDefined();
 
-		const valid = schema.parse({
+		const valid = schema?.parse({
 			linkedin_username: "bob",
-			custom_note: "Hello Bob!",
-			confirm_send: false,
+			note: "Hello Bob!",
 		});
-		expect(valid.linkedin_username).toBe("bob");
-		expect(valid.custom_note).toBe("Hello Bob!");
-		expect(() =>
-			schema.parse({
-				linkedin_username: "bob",
-				custom_note: "a".repeat(400),
-			}),
-		).toThrow();
+		expect(valid).toEqual({
+			linkedin_username: "bob",
+			note: "Hello Bob!",
+		});
+		expect(() => schema?.parse({})).toThrow();
 	});
 
-	test("search_jobs input schema accepts filters and pagination", () => {
-		const schema = z.object({
-			keywords: z.string().optional(),
-			location: z.string().optional(),
-			job_type: z.string().optional(),
-			experience_level: z.string().optional(),
-			work_type: z.string().optional(),
-			easy_apply_only: z.boolean().optional(),
-			under_10_applicants: z.boolean().optional(),
-			page: z.number().int().min(1).optional(),
-		});
+	test("search_jobs input schema accepts keywords and easy_apply from registered tool", () => {
+		const schema = registered.search_jobs?.inputSchema;
+		expect(schema).toBeDefined();
 
-		const parsed = schema.parse({
+		const parsed = schema?.parse({
 			keywords: "Software Engineer",
 			location: "San Francisco",
 			job_type: "full_time",
-			easy_apply_only: true,
-			page: 1,
+			easy_apply: true,
+			max_pages: 5,
 		});
-		expect(parsed.keywords).toBe("Software Engineer");
-		expect(parsed.easy_apply_only).toBe(true);
+		expect(parsed).toEqual({
+			keywords: "Software Engineer",
+			location: "San Francisco",
+			job_type: "full_time",
+			easy_apply: true,
+			max_pages: 5,
+		});
+		expect(() => schema?.parse({ location: "San Francisco" })).toThrow();
 	});
 });

@@ -44,6 +44,7 @@ describe("Unit: link-metadata", () => {
 
 	test("buildFeedReferences preserves relative feed_post urls", () => {
 		const refs = buildFeedReferences([{ href: "https://www.linkedin.com/feed/update/urn:li:activity:1/" }], ["/posts/foo_bar-2"]);
+		expect(refs).toHaveLength(2);
 		expect(refs.every((r) => r.kind === "feed_post")).toBe(true);
 		expect(refs.every((r) => r.url.startsWith("/"))).toBe(true);
 	});

@@ -1,17 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type ActionSignals, detectConnectionState } from "../../src/scraping/connection.ts";
-
-const CONNECT_STATUSES = [
-	"already_connected",
-	"pending",
-	"incoming_request",
-	"connected",
-	"accepted",
-	"connect_unavailable",
-	"unavailable",
-	"send_failed",
-	"custom_note_limit_reached",
-] as const;
+import { type ActionSignals, type ConnectionState, detectConnectionState } from "../../src/scraping/connection.ts";
 
 describe("Unit: connection-state", () => {
 	const baseSignals: ActionSignals = {
@@ -24,51 +12,53 @@ describe("Unit: connection-state", () => {
 	};
 
 	test("detects connectable state when invite anchor is present", () => {
-		expect(detectConnectionState({ ...baseSignals, has_invite_anchor: true })).toBe("connectable");
+		const state: ConnectionState = detectConnectionState({ ...baseSignals, has_invite_anchor: true });
+		expect(state).toBe("connectable");
 	});
 
 	test("detects already_connected state when compose anchor exists without labeled action button", () => {
-		expect(
-			detectConnectionState({
-				...baseSignals,
-				has_compose_anchor_in_action_root: true,
-			}),
-		).toBe("already_connected");
+		const state: ConnectionState = detectConnectionState({
+			...baseSignals,
+			has_compose_anchor_in_action_root: true,
+		});
+		expect(state).toBe("already_connected");
 	});
 
 	test("detects follow_only state when compose anchor and labeled button coexist", () => {
-		expect(
-			detectConnectionState({
-				...baseSignals,
-				has_compose_anchor_in_action_root: true,
-				has_labeled_action_button: true,
-			}),
-		).toBe("follow_only");
+		const state: ConnectionState = detectConnectionState({
+			...baseSignals,
+			has_compose_anchor_in_action_root: true,
+			has_labeled_action_button: true,
+		});
+		expect(state).toBe("follow_only");
 	});
 
 	test("detects self_profile when edit_intro anchor is present", () => {
-		expect(
-			detectConnectionState({
-				...baseSignals,
-				has_edit_intro_anchor: true,
-			}),
-		).toBe("self_profile");
+		const state: ConnectionState = detectConnectionState({
+			...baseSignals,
+			has_edit_intro_anchor: true,
+		});
+		expect(state).toBe("self_profile");
 	});
 
 	test("detects incoming_request when incoming action row is present", () => {
-		expect(
-			detectConnectionState({
-				...baseSignals,
-				has_incoming_action_row: true,
-			}),
-		).toBe("incoming_request");
+		const state: ConnectionState = detectConnectionState({
+			...baseSignals,
+			has_incoming_action_row: true,
+		});
+		expect(state).toBe("incoming_request");
 	});
 
-	test("enum values include all valid connect outcome statuses", () => {
-		for (const s of CONNECT_STATUSES) {
-			expect(typeof s).toBe("string");
-		}
-		expect(CONNECT_STATUSES).toContain("connected");
-		expect(CONNECT_STATUSES).toContain("custom_note_limit_reached");
+	test("detects pending when labeled action anchor is present", () => {
+		const state: ConnectionState = detectConnectionState({
+			...baseSignals,
+			has_labeled_action_anchor: true,
+		});
+		expect(state).toBe("pending");
+	});
+
+	test("detects unavailable when no matching action signals are found", () => {
+		const state: ConnectionState = detectConnectionState(baseSignals);
+		expect(state).toBe("unavailable");
 	});
 });
