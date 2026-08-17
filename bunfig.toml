@@ -4,3 +4,14 @@ registry = "https://registry.npmjs.org/"
 
 # The access level to publish with
 access = "public"
+
+[test]
+# Test discovery & execution root
+root = "."
+
+# Coverage configuration
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = [
+  "tests/**",
+  "node_modules/**"
+]

@@ -1,4 +1,9 @@
 // -- Server-level errors --
+/**
+ * Base error class for all server-level exceptions in the LinkedIn MCP server.
+ *
+ * @public
+ */
 export class LinkedInMCPError extends Error {
 	constructor(message: string) {
 		super(message);
@@ -6,6 +11,11 @@ export class LinkedInMCPError extends Error {
 	}
 }
 
+/**
+ * Thrown when the stored LinkedIn session has expired and requires re-authentication.
+ *
+ * @public
+ */
 export class SessionExpiredError extends LinkedInMCPError {
 	constructor() {
 		super("LinkedIn session expired. Please re-authenticate.");
@@ -13,6 +23,11 @@ export class SessionExpiredError extends LinkedInMCPError {
 	}
 }
 
+/**
+ * Thrown when browser initialization is underway but not yet complete.
+ *
+ * @public
+ */
 export class BrowserSetupInProgressError extends LinkedInMCPError {
 	constructor() {
 		super("Browser setup is still in progress. Please try again shortly.");
@@ -20,6 +35,11 @@ export class BrowserSetupInProgressError extends LinkedInMCPError {
 	}
 }
 
+/**
+ * Thrown when the browser fails to start or establish a DevTools connection.
+ *
+ * @public
+ */
 export class BrowserSetupFailedError extends LinkedInMCPError {
 	constructor(cause?: string) {
 		super(`Browser setup failed. ${cause ?? ""}`);
@@ -27,6 +47,11 @@ export class BrowserSetupFailedError extends LinkedInMCPError {
 	}
 }
 
+/**
+ * Thrown when no authenticated session cookies or profile directory are found.
+ *
+ * @public
+ */
 export class CredentialsNotFoundError extends LinkedInMCPError {
 	constructor() {
 		super("No LinkedIn session found. Run `bun run login` or `--login` first.");
