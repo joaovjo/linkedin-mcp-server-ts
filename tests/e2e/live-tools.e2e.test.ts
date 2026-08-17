@@ -34,7 +34,9 @@ describe("E2E: Live LinkedIn Suite (Optional / Conditional)", () => {
 			}
 		)._registeredTools;
 
-		const res = await registered.get_my_profile.handler({});
+		const tool = registered.get_my_profile;
+		expect(tool).toBeDefined();
+		const res = await tool!.handler({});
 		expect(res.content).toBeDefined();
 		expect(res.content[0]?.text).toBeDefined();
 	});

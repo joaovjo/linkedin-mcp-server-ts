@@ -114,7 +114,9 @@ describe("E2E: Hermetic Tools Execution", () => {
 			}
 		)._registeredTools;
 
-		const result = await registered.get_person_profile.handler({
+		const tool = registered.get_person_profile;
+		expect(tool).toBeDefined();
+		const result = await tool!.handler({
 			linkedin_username: "janedoe",
 		});
 
@@ -139,7 +141,9 @@ describe("E2E: Hermetic Tools Execution", () => {
 			}
 		)._registeredTools;
 
-		const result = await registered.get_company_profile.handler({
+		const tool = registered.get_company_profile;
+		expect(tool).toBeDefined();
+		const result = await tool!.handler({
 			company_name: "acme-corp",
 		});
 
@@ -165,7 +169,9 @@ describe("E2E: Hermetic Tools Execution", () => {
 			}
 		)._registeredTools;
 
-		const result = await registered.get_person_profile.handler({
+		const tool = registered.get_person_profile;
+		expect(tool).toBeDefined();
+		const result = await tool!.handler({
 			linkedin_username: "janedoe",
 		});
 
