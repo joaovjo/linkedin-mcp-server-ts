@@ -5,8 +5,11 @@ class SerializationQueue {
 
 	async execute<T>(slot: string, fn: AsyncFn<T>): Promise<T> {
 		const prev = this.queue.get(slot) ?? Promise.resolve();
-		const next = prev.then(() => fn());
-		this.queue.set(slot, next);
+		const next = prev.catch(() => {}).then(() => fn());
+		this.queue.set(
+			slot,
+			next.catch(() => {}),
+		);
 		return await next;
 	}
 
