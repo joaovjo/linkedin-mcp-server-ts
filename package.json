@@ -43,6 +43,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
     "@types/bun": "latest",
+    "typedoc": "^0.28.20",
     "typescript": "^7.0.2"
   },
   "keywords": [
