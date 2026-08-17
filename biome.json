@@ -7,11 +7,24 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["src/**/*", "tests/**/*", "!node_modules/**/*", "!dist/**/*", "!build/**/*", "!out/**/*", "!bun.lock"],
+		"includes": [
+			"src/**/*",
+			"tests/**/*",
+			"!node_modules/**/*",
+			"!dist/**/*",
+			"!build/**/*",
+			"!out/**/*",
+			"!bun.lock",
+			"!package-lock.json",
+			"!yarn.lock",
+			"!pnpm-lock.yaml",
+			"!biome.json"
+		]
 	},
 	"formatter": {
 		"enabled": true,
-		"indentStyle": "tab"
+		"indentStyle": "tab",
+		"lineWidth": 130
 	},
 	"linter": {
 		"enabled": true,
