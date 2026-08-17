@@ -1,29 +1,39 @@
 import { browserManager } from "../browser/manager.ts";
+import {
+	extractCompanyUrnFromDom,
+	extractProfileUrn,
+	extractRootContent,
+} from "./dom-extract.ts";
 import { LINKEDIN_BASE, type SectionDef } from "./fields.ts";
+import {
+	buildReferences,
+	type Reference,
+} from "./link-metadata.ts";
 
 const NAV_DELAY = 2_000;
 const RATE_LIMITED_MSG =
 	"[Rate limited] LinkedIn blocked this section. Try again later or request fewer sections.";
 
+export interface SectionExtractResult {
+	text: string;
+	references: Reference[];
+	error?: string;
+}
+
 export async function navigateAndExtract(url: string): Promise<string> {
 	await browserManager.navigate(url);
-
-	const mainText = await browserManager.evaluate<string>(
-		"(() => (document.querySelector('main') || document.body)?.innerText?.trim() ?? '')()",
-	);
-
-	if (isRateLimited(mainText)) {
-		return RATE_LIMITED_MSG;
-	}
-
-	return stripLinkedinNoise(mainText);
+	await delay(NAV_DELAY);
+	const { text } = await extractRootContent(browserManager);
+	if (isRateLimited(text)) return RATE_LIMITED_MSG;
+	return stripLinkedinNoise(text);
 }
 
 export async function extractSection(
-	_sectionName: string,
+	sectionName: string,
 	sectionDef: SectionDef,
 	username: string,
-): Promise<{ text: string; error?: string }> {
+	maxScrolls?: number,
+): Promise<SectionExtractResult> {
 	try {
 		const url =
 			typeof sectionDef.url === "function"
@@ -33,61 +43,104 @@ export async function extractSection(
 		await browserManager.navigate(url);
 		await delay(NAV_DELAY);
 
-		const text = await browserManager.evaluate<string>(
-			"(() => (document.querySelector('main') || document.body)?.innerText?.trim() ?? '')()",
-		);
+		const isDetails = url.includes("/details/");
+		const isActivity = url.includes("/recent-activity/");
+		const isContactOverlay = url.includes("/overlay/contact-info/");
 
-		if (isRateLimited(text)) {
-			return { text: RATE_LIMITED_MSG, error: "rate_limited" };
+		if (isDetails) {
+			await clickShowMore(maxScrolls ?? 5);
 		}
 
-		const cleaned = stripLinkedinNoise(text);
-		return { text: cleaned };
+		const scrolls =
+			maxScrolls ?? (isActivity ? 10 : 5);
+		if (isActivity) {
+			await scrollToBottom(scrolls, 1000);
+		} else if (!isDetails) {
+			await scrollMainScrollable("bottom", Math.min(scrolls, 5), 500);
+		} else {
+			await scrollToBottom(Math.min(scrolls, 3), 400);
+		}
+
+		const preferDialog = isContactOverlay || sectionName === "contact_info";
+		const raw = await extractRootContent(browserManager, {
+			preferDialog,
+		});
+
+		if (isRateLimited(raw.text)) {
+			return {
+				text: RATE_LIMITED_MSG,
+				references: [],
+				error: "rate_limited",
+			};
+		}
+
+		const cleaned = stripLinkedinNoise(raw.text);
+		return {
+			text: cleaned,
+			references: buildReferences(raw.references, sectionName),
+		};
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		return { text: "", error: message };
+		return { text: "", references: [], error: message };
 	}
 }
 
-export async function extractPersonProfile(username: string): Promise<string> {
+export async function extractPersonProfile(
+	username: string,
+): Promise<SectionExtractResult> {
 	const url = `${LINKEDIN_BASE}/in/${username}/`;
 	await browserManager.navigate(url);
 	await delay(1000);
+	await scrollMainScrollable("bottom", 2, 400);
 
-	const text = await browserManager.evaluate<string>(
-		"(() => (document.querySelector('main') || document.body)?.innerText?.trim() ?? '')()",
-	);
-
-	if (isRateLimited(text)) {
-		return RATE_LIMITED_MSG;
+	const raw = await extractRootContent(browserManager);
+	if (isRateLimited(raw.text)) {
+		return { text: RATE_LIMITED_MSG, references: [], error: "rate_limited" };
 	}
-
-	return stripLinkedinNoise(text);
+	return {
+		text: stripLinkedinNoise(raw.text),
+		references: buildReferences(raw.references, "main_profile"),
+	};
 }
 
 export async function extractCompanyProfile(
 	companyName: string,
-): Promise<string> {
-	const url = `${LINKEDIN_BASE}/company/${companyName}/`;
+): Promise<SectionExtractResult & { company_urn?: string }> {
+	const url = `${LINKEDIN_BASE}/company/${companyName}/about/`;
 	await browserManager.navigate(url);
 	await delay(1000);
+	await scrollMainScrollable("bottom", 2, 400);
 
-	const text = await browserManager.evaluate<string>(
-		"(() => (document.querySelector('main') || document.body)?.innerText?.trim() ?? '')()",
-	);
-
-	if (isRateLimited(text)) {
-		return RATE_LIMITED_MSG;
+	const raw = await extractRootContent(browserManager);
+	if (isRateLimited(raw.text)) {
+		return { text: RATE_LIMITED_MSG, references: [], error: "rate_limited" };
 	}
 
-	return stripLinkedinNoise(text);
+	const companyUrn = await extractCompanyUrnFromDom(browserManager);
+	const refs = buildReferences(raw.references, "about");
+	if (companyUrn) {
+		refs.unshift({
+			kind: "company_urn",
+			url: `/search/results/people/?currentCompany=%5B%22${companyUrn}%22%5D`,
+			value: companyUrn,
+			context: "about",
+		});
+	}
+
+	return {
+		text: stripLinkedinNoise(raw.text),
+		references: refs,
+		company_urn: companyUrn ?? undefined,
+	};
+}
+
+export async function getPersonProfileUrn(): Promise<string | null> {
+	return extractProfileUrn(browserManager);
 }
 
 export async function getMainInnerText(): Promise<string> {
-	const text = await browserManager.evaluate<string>(
-		"(() => (document.querySelector('main') || document.body)?.innerText?.trim() ?? '')()",
-	);
-	return text;
+	const raw = await extractRootContent(browserManager);
+	return raw.text;
 }
 
 export async function checkLoginState(): Promise<boolean> {
@@ -114,6 +167,145 @@ export function scrollFeed(): Promise<void> {
 
 export async function getCurrentUrl(): Promise<string> {
 	return await browserManager.getCurrentUrl();
+}
+
+/** Click ^Show (more|all) buttons inside main (details pages). */
+export async function clickShowMore(maxClicks: number): Promise<number> {
+	let clicked = 0;
+	for (let i = 0; i < maxClicks; i++) {
+		const didClick = await browserManager.evaluate<boolean>(() => {
+			const buttons = [
+				...document.querySelectorAll("main button"),
+			] as HTMLButtonElement[];
+			const target = buttons.find((btn) => {
+				const t = (btn.innerText || btn.textContent || "").trim();
+				return /^Show (more|all)\b/i.test(t);
+			});
+			if (!target) return false;
+			const style = window.getComputedStyle(target);
+			if (style.display === "none" || style.visibility === "hidden") return false;
+			target.scrollIntoView({ block: "center" });
+			target.click();
+			return true;
+		});
+		if (!didClick) break;
+		clicked++;
+		await delay(1000);
+	}
+	return clicked;
+}
+
+/** Scroll the largest scrollable region inside main. */
+export async function scrollMainScrollable(
+	position: "top" | "bottom",
+	attempts: number,
+	pauseMs = 500,
+): Promise<void> {
+	for (let i = 0; i < attempts; i++) {
+		await browserManager.evaluate((pos: string) => {
+			const main = document.querySelector("main");
+			if (!main) return false;
+
+			const isScrollable = (element: Element) => {
+				const style = window.getComputedStyle(element);
+				return (
+					(style.overflowY === "auto" || style.overflowY === "scroll") &&
+					(element as HTMLElement).scrollHeight >
+						(element as HTMLElement).clientHeight + 20
+				);
+			};
+
+			const candidates = [main, ...main.querySelectorAll("*")].filter(
+				isScrollable,
+			) as HTMLElement[];
+			const target =
+				candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ||
+				(main as HTMLElement);
+			target.scrollTop = pos === "top" ? 0 : target.scrollHeight;
+			return true;
+		}, position);
+		await delay(pauseMs);
+	}
+}
+
+export async function scrollToBottom(
+	maxScrolls: number,
+	pauseMs = 500,
+): Promise<void> {
+	for (let i = 0; i < maxScrolls; i++) {
+		await scrollMainScrollable("bottom", 1, 0);
+		await browserManager.scroll(0, 1400);
+		await delay(pauseMs);
+	}
+}
+
+export async function scrollJobSidebar(
+	maxScrolls = 5,
+	pauseMs = 500,
+): Promise<void> {
+	for (let i = 0; i < maxScrolls; i++) {
+		await browserManager.evaluate(() => {
+			const selectors = [
+				".jobs-search-results-list",
+				".scaffold-layout__list",
+				"div.jobs-search-results-list",
+				'[data-results-list-container="true"]',
+				"main ul",
+			];
+			let target: HTMLElement | null = null;
+			for (const sel of selectors) {
+				const el = document.querySelector(sel) as HTMLElement | null;
+				if (el && el.scrollHeight > el.clientHeight + 20) {
+					target = el;
+					break;
+				}
+			}
+			if (!target) {
+				const main = document.querySelector("main");
+				if (!main) return false;
+				const candidates = [main, ...main.querySelectorAll("*")].filter(
+					(el) => {
+						const style = window.getComputedStyle(el);
+						return (
+							(style.overflowY === "auto" || style.overflowY === "scroll") &&
+							(el as HTMLElement).scrollHeight >
+								(el as HTMLElement).clientHeight + 20
+						);
+					},
+				) as HTMLElement[];
+				target =
+					candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ??
+					null;
+			}
+			if (!target) {
+				window.scrollBy(0, 1200);
+				return false;
+			}
+			target.scrollTop = target.scrollHeight;
+			return true;
+		});
+		await delay(pauseMs);
+	}
+}
+
+export async function extractJobIds(): Promise<string[]> {
+	return (
+		(await browserManager.evaluate<string[]>(() => {
+			const links = document.querySelectorAll('a[href*="/jobs/view/"]');
+			const seen = new Set<string>();
+			const ids: string[] = [];
+			for (const a of links) {
+				const match = (a as HTMLAnchorElement).href.match(
+					/\/jobs\/view\/(\d+)/,
+				);
+				if (match?.[1] && !seen.has(match[1])) {
+					seen.add(match[1]);
+					ids.push(match[1]);
+				}
+			}
+			return ids;
+		})) ?? []
+	);
 }
 
 function delay(ms: number): Promise<void> {

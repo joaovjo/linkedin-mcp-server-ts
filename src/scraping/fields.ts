@@ -39,8 +39,11 @@ export const PERSON_SECTIONS: Record<string, SectionDef> = {
 };
 
 export const COMPANY_SECTIONS: Record<string, SectionDef> = {
+	about: {
+		url: (u: string) => `https://www.linkedin.com/company/${u}/about/`,
+	},
 	posts: {
-		url: (u: string) => `https://www.linkedin.com/company/${u}/`,
+		url: (u: string) => `https://www.linkedin.com/company/${u}/posts/`,
 	},
 	jobs: {
 		url: (u: string) => `https://www.linkedin.com/company/${u}/jobs/`,

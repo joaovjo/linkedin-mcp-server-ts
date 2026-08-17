@@ -1,5 +1,17 @@
 import type { AppConfig } from "../config.ts";
 import { BrowserSetupFailedError } from "../errors/types.ts";
+import {
+	ensureSessionDirs,
+	webViewProfilePath,
+} from "../session/store.ts";
+import {
+	enableNetwork,
+	getAllCookies,
+	setCookies,
+	setUserAgent,
+	type CdpView,
+} from "./cdp.ts";
+import type { CookieRecord } from "../session/store.ts";
 import type { BrowserState } from "./types.ts";
 
 type Modifier = "Shift" | "Control" | "Alt" | "Meta";
@@ -8,10 +20,16 @@ function escapeSelector(sel: string): string {
 	return sel.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+export interface BrowserInitOptions {
+	attachWsUrl?: string;
+	injectCookies?: CookieRecord[];
+}
+
 class BrowserManager {
 	private view: Bun.WebView | null = null;
 	private state: BrowserState = "uninitialized";
 	private initPromise: Promise<void> | null = null;
+	private networkEnabled = false;
 
 	getState(): BrowserState {
 		return this.state;
@@ -21,35 +39,55 @@ class BrowserManager {
 		return this.state === "ready" && this.view !== null;
 	}
 
-	async initialize(config: AppConfig): Promise<void> {
-		if (this.initPromise) return this.initPromise;
+	async initialize(
+		config: AppConfig,
+		options: BrowserInitOptions = {},
+	): Promise<void> {
+		if (this.initPromise && !options.attachWsUrl) return this.initPromise;
 
 		this.state = "booting";
-
 		this.initPromise = (async () => {
 			try {
-				const profilePath = `${config.profileDir}/bun-webview`;
+				await ensureSessionDirs(config.userDataDir);
+				const profilePath = webViewProfilePath(config.userDataDir);
 
-				const backendPref =
-					"BUN_WEBVIEW_BACKEND" in Bun.env
-						? Bun.env.BUN_WEBVIEW_BACKEND
-						: undefined;
+				const backend: Record<string, unknown> = options.attachWsUrl
+					? { type: "chrome", url: options.attachWsUrl }
+					: {
+							type: "chrome",
+							url: false,
+							...(config.chromePath ? { path: config.chromePath } : {}),
+						};
 
 				const viewOptions: Record<string, unknown> = {
-					width: 1280,
-					height: 720,
-					dataStore: { directory: profilePath },
+					width: config.viewport.width,
+					height: config.viewport.height,
+					backend,
 				};
 
-				if (backendPref === "webkit" || backendPref === "chrome") {
-					viewOptions.backend = backendPref;
+				// dataStore maps to --user-data-dir for spawned Chrome; skip when attaching
+				if (!options.attachWsUrl) {
+					viewOptions.dataStore = { directory: profilePath };
 				}
 
-				this.view = new Bun.WebView(viewOptions as any);
+				this.view = new Bun.WebView(
+					viewOptions as ConstructorParameters<typeof Bun.WebView>[0],
+				);
+				await this.view.navigate("about:blank");
+				this.networkEnabled = false;
+
+				if (config.userAgent) {
+					await setUserAgent(this.view, config.userAgent);
+				}
+				if (options.injectCookies?.length) {
+					await setCookies(this.view, options.injectCookies);
+				}
+
 				this.state = "ready";
 			} catch (err) {
 				this.state = "failed";
 				this.initPromise = null;
+				this.view = null;
 				throw new BrowserSetupFailedError(
 					err instanceof Error ? err.message : String(err),
 				);
@@ -59,7 +97,7 @@ class BrowserManager {
 		return this.initPromise;
 	}
 
-	getView(): Bun.WebView {
+	getView(): CdpView {
 		if (!this.view || this.state !== "ready") {
 			throw new BrowserSetupFailedError("Browser not initialized");
 		}
@@ -72,7 +110,30 @@ class BrowserManager {
 			this.state = "uninitialized";
 			this.initPromise = null;
 		}
+
+		const { resolveExistingChromeWsUrl } = await import("./chrome-launch.ts");
+		const wsUrl = await resolveExistingChromeWsUrl(config.debugPort);
+		if (wsUrl) {
+			await this.initialize(config, { attachWsUrl: wsUrl });
+			return;
+		}
+
 		await this.initialize(config);
+	}
+
+	async ensureNetwork(): Promise<void> {
+		if (this.networkEnabled) return;
+		await enableNetwork(this.getView());
+		this.networkEnabled = true;
+	}
+
+	async exportCookies(): Promise<CookieRecord[]> {
+		await this.ensureNetwork();
+		return getAllCookies(this.getView());
+	}
+
+	async importCookies(cookies: CookieRecord[]): Promise<void> {
+		await setCookies(this.getView(), cookies);
 	}
 
 	async close(): Promise<void> {
@@ -80,45 +141,63 @@ class BrowserManager {
 			try {
 				this.view.close();
 			} catch {
-				// Already closed
+				// already closed
 			}
 			this.view = null;
 		}
+		try {
+			Bun.WebView.closeAll();
+		} catch {
+			// ignore
+		}
 		this.state = "uninitialized";
 		this.initPromise = null;
+		this.networkEnabled = false;
 	}
 
 	async navigate(url: string): Promise<void> {
-		const view = this.getView();
-		await view.navigate(url);
+		await this.getView().navigate(url);
 	}
 
-	async evaluate<T = unknown>(script: string): Promise<T> {
+	async evaluate<T = unknown>(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		script: string | ((...args: any[]) => T),
+		...args: any[]
+	): Promise<T> {
 		const view = this.getView();
+		if (typeof script === "function") {
+			return (await (view.evaluate as (...a: any[]) => Promise<T>)(
+				script,
+				...args,
+			)) as T;
+		}
 		return (await view.evaluate(script)) as T;
 	}
 
 	async click(selector: string, options?: { timeout?: number }): Promise<void> {
-		const view = this.getView();
-		await view.click(selector, options as any);
+		await this.getView().click(selector, options as never);
 	}
 
 	async type(text: string): Promise<void> {
-		const view = this.getView();
-		await view.type(text);
+		await this.getView().type(text);
 	}
 
 	async press(
 		key: string,
 		options?: { modifiers?: Modifier[] },
 	): Promise<void> {
-		const view = this.getView();
-		await view.press(key, options as any);
+		await this.getView().press(key, options as never);
 	}
 
 	async scroll(dx: number, dy: number): Promise<void> {
-		const view = this.getView();
-		await view.scroll(dx, dy);
+		await this.getView().scroll(dx, dy);
+	}
+
+	async scrollTo(
+		selector: string,
+		options?: { block?: "start" | "center" | "end" | "nearest"; timeout?: number },
+	): Promise<void> {
+		await this.getView().scrollTo(selector, options as never);
 	}
 
 	async waitForSelector(selector: string, timeout = 30000): Promise<boolean> {
@@ -160,7 +239,7 @@ class BrowserManager {
 	}
 
 	async getCurrentUrl(): Promise<string> {
-		return await this.evaluate<string>("window.location.href");
+		return this.getView().url || (await this.evaluate<string>("window.location.href"));
 	}
 
 	async getAllTexts(selector: string): Promise<string[]> {
@@ -171,11 +250,10 @@ class BrowserManager {
 	}
 
 	async scrollToEnd(currentCount: number): Promise<number> {
-		const view = this.getView();
 		const before = await this.evaluate<number>(
 			"document.body.scrollHeight || 0",
 		);
-		await view.scroll(0, before);
+		await this.scroll(0, before);
 		await Bun.sleep(1000);
 		const after = await this.evaluate<number>(
 			"document.body.scrollHeight || 0",

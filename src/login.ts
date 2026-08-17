@@ -1,19 +1,15 @@
+// Compatibility entry: prefer `bun run src/index.ts --login`
 import { performLogin } from "./browser/auth.ts";
-import { browserManager } from "./browser/manager.ts";
 import { loadConfig } from "./config.ts";
 
-const config = loadConfig();
+const config = loadConfig(["--login", ...Bun.argv.slice(2)]);
 
 console.error("LinkedIn MCP Server - Login Utility");
 console.error("===================================");
 
 try {
-	await browserManager.initialize(config);
-	await performLogin(config.profileDir);
-	await browserManager.close();
-	console.error(
-		"\n✓ Login complete. Session saved. You can now run the server.",
-	);
+	await performLogin(config);
+	console.error("\n✓ Login complete. Session saved.");
 	process.exit(0);
 } catch (err) {
 	console.error(

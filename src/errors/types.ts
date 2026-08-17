@@ -29,8 +29,26 @@ export class BrowserSetupFailedError extends LinkedInMCPError {
 
 export class CredentialsNotFoundError extends LinkedInMCPError {
 	constructor() {
-		super("No LinkedIn session found. Run `bun run login` first.");
+		super("No LinkedIn session found. Run `bun run login` or `--login` first.");
 		this.name = "CredentialsNotFoundError";
+	}
+}
+
+export class AuthenticationInProgressError extends LinkedInMCPError {
+	constructor() {
+		super(
+			"Authentication in progress. Complete LinkedIn login in the browser, then retry this tool in ~30 seconds.",
+		);
+		this.name = "AuthenticationInProgressError";
+	}
+}
+
+export class AuthenticationStartedError extends LinkedInMCPError {
+	constructor() {
+		super(
+			"Authentication started. Complete LinkedIn login in the browser, then retry.",
+		);
+		this.name = "AuthenticationStartedError";
 	}
 }
 

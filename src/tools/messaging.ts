@@ -1,268 +1,368 @@
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/server";
+import type { AppConfig } from "../config.ts";
 import { browserManager } from "../browser/manager.ts";
-import { raiseToolError } from "../errors/handler.ts";
-import { checkLoginState } from "../scraping/extractor.ts";
-import type { ToolDef } from "./types.ts";
+import {
+	getCurrentUrl,
+	scrollMainScrollable,
+	stripLinkedinNoise,
+} from "../scraping/extractor.ts";
+import { LINKEDIN_BASE } from "../scraping/fields.ts";
+import { buildReferences, classifyLink } from "../scraping/references.ts";
+import { extractRootContent } from "../scraping/dom-extract.ts";
+import {
+	extractConversationThreadRefs,
+	readProfileDisplayName,
+	resolveConversationThreadUrls,
+} from "../scraping/conversation-refs.ts";
+import {
+	applySectionText,
+	isRateLimitedText,
+	type SectionErrorInfo,
+} from "../scraping/section-result.ts";
+import { LinkedInScraperException } from "../errors/types.ts";
+import { toolJson, wrapTool } from "./helpers.ts";
 
-export function loadMessagingTools(): ToolDef[] {
-	return [
+function messageResult(
+	url: string,
+	status: string,
+	message: string,
+	extra: Record<string, unknown> = {},
+) {
+	return {
+		url,
+		status,
+		message,
+		recipient_selected: extra.recipient_selected ?? false,
+		sent: extra.sent ?? false,
+		...extra,
+	};
+}
+
+export function registerMessagingTools(
+	server: McpServer,
+	config: AppConfig,
+): void {
+	server.registerTool(
+		"get_inbox",
 		{
-			name: "get_inbox",
-			description:
-				"List recent conversations from the LinkedIn messaging inbox",
-			inputSchema: {
-				type: "object",
-				properties: {
-					limit: {
-						type: "number",
-						description:
-							"Maximum number of conversations to load (1-50, default 20)",
-						default: 20,
-					},
-				},
-			},
-			handler: async () => {
-				if (!(await checkLoginState())) {
-					return raiseToolError(
-						new Error("Not authenticated. Run `bun run login` first."),
-					);
-				}
-
-				await browserManager.navigate("https://www.linkedin.com/messaging/");
-				await Bun.sleep(2000);
-
-				const text = await browserManager.evaluate<string>(
-					"(() => document.querySelector('main')?.innerText?.trim() ?? '')()",
-				);
-
-				return { content: [{ type: "text", text }] };
-			},
+			title: "Get Inbox",
+			description: "List recent conversations from the LinkedIn messaging inbox",
+			inputSchema: z.object({
+				limit: z.number().int().min(1).max(50).optional().default(20),
+			}),
+			annotations: { readOnlyHint: true, openWorldHint: true },
 		},
-		{
-			name: "get_conversation",
-			description:
-				"Read a specific messaging conversation. " +
-				"Provide either linkedin_username or thread_id to identify the conversation.",
-			inputSchema: {
-				type: "object",
-				properties: {
-					linkedin_username: {
-						type: "string",
-						description: "LinkedIn username of the conversation participant",
-					},
-					thread_id: {
-						type: "string",
-						description: "LinkedIn messaging thread ID",
-					},
-					index: {
-						type: "number",
-						description:
-							"0-based selector for which thread to open when the participant has multiple threads. Ignored when thread_id is provided.",
-						default: 0,
-					},
-				},
-			},
-			handler: async (args) => {
-				if (!(await checkLoginState())) {
-					return raiseToolError(
-						new Error("Not authenticated. Run `bun run login` first."),
-					);
-				}
+		async (args) =>
+			wrapTool(config, async () => {
+				await browserManager.navigate(`${LINKEDIN_BASE}/messaging/`);
+				await Bun.sleep(1500);
+				await scrollMainScrollable("bottom", 2, 500);
 
-				const threadId = args.thread_id as string | undefined;
-				const username = args.linkedin_username as string | undefined;
+				const raw = await extractRootContent(browserManager);
+				const sections: Record<string, string> = {};
+				const sectionErrors: Record<string, SectionErrorInfo> = {};
+				applySectionText(sections, sectionErrors, "inbox", stripLinkedinNoise(raw.text));
 
-				if (!threadId && !username) {
-					return raiseToolError(
-						new Error("Provide either linkedin_username or thread_id"),
-					);
-				}
+				const limit = args.limit ?? 20;
+				const conversationRefs = !isRateLimitedText(raw.text)
+					? await extractConversationThreadRefs(limit, "inbox")
+					: [];
 
-				let url: string;
-				if (threadId) {
-					url = `https://www.linkedin.com/messaging/thread/${threadId}/`;
-				} else {
-					await browserManager.navigate("https://www.linkedin.com/messaging/");
-					await Bun.sleep(2000);
-
-					url = await browserManager.getCurrentUrl();
-				}
-
-				await browserManager.navigate(url);
-				await Bun.sleep(2000);
-
-				const text = await browserManager.evaluate<string>(
-					"(() => document.querySelector('main')?.innerText?.trim() ?? '')()",
-				);
-
-				return { content: [{ type: "text", text }] };
-			},
-		},
-		{
-			name: "search_conversations",
-			description: "Search messages by keyword",
-			inputSchema: {
-				type: "object",
-				properties: {
-					keywords: {
-						type: "string",
-						description: "Search keywords to filter conversations",
-					},
-					limit: {
-						type: "number",
-						description:
-							"Maximum number of search-result rows to enumerate (1-50, default 20)",
-						default: 20,
-					},
-				},
-				required: ["keywords"],
-			},
-			handler: async (args) => {
-				const keywords = encodeURIComponent(args.keywords as string);
-
-				await browserManager.navigate(
-					`https://www.linkedin.com/messaging/?keywords=${keywords}`,
-				);
-				await Bun.sleep(2000);
-
-				const text = await browserManager.evaluate<string>(
-					"(() => document.querySelector('main')?.innerText?.trim() ?? '')()",
-				);
-
-				return { content: [{ type: "text", text }] };
-			},
-		},
-		{
-			name: "send_message",
-			description:
-				"Send a message to a LinkedIn user. " +
-				"The recipient must be directly messageable from the profile page. " +
-				"This is a write operation when confirm_send is True.",
-			inputSchema: {
-				type: "object",
-				properties: {
-					linkedin_username: {
-						type: "string",
-						description: "LinkedIn username of the recipient",
-					},
-					message: {
-						type: "string",
-						description: "The message text to send",
-					},
-					confirm_send: {
-						type: "boolean",
-						description: "Must be True to send the message",
-					},
-					profile_urn: {
-						type: "string",
-						description:
-							"Optional profile URN (e.g. ACoAAB...) to construct the compose URL directly. " +
-							"Obtain via get_person_profile.",
-					},
-				},
-				required: ["linkedin_username", "message", "confirm_send"],
-			},
-			handler: async (args) => {
-				const username = args.linkedin_username as string;
-				const messageText = args.message as string;
-				const confirmSend = args.confirm_send as boolean;
-				const profileUrn = args.profile_urn as string | undefined;
-
-				if (!username)
-					return raiseToolError(new Error("linkedin_username is required"));
-				if (!messageText)
-					return raiseToolError(new Error("message is required"));
-				if (!confirmSend) {
-					return raiseToolError(
-						new Error("Set confirm_send=true to send the message"),
-					);
-				}
-
-				if (!(await checkLoginState())) {
-					return raiseToolError(
-						new Error("Not authenticated. Run `bun run login` first."),
-					);
-				}
-
-				if (profileUrn) {
-					await browserManager.navigate(
-						`https://www.linkedin.com/messaging/compose/?recipient=${profileUrn}`,
-					);
-				} else {
-					await browserManager.navigate(
-						`https://www.linkedin.com/in/${username}/`,
-					);
-					await Bun.sleep(1000);
-
-					const hasMessageBtn = await browserManager.evaluate<boolean>(
-						`!!document.querySelector('a[href*="/messaging/compose/"]')`,
-					);
-
-					if (!hasMessageBtn) {
-						return {
-							content: [
-								{
-									type: "text",
-									text: JSON.stringify(
-										{ status: "error", message: "Message button not found" },
-										null,
-										2,
-									),
-								},
-							],
-						};
-					}
-
-					await browserManager.click('a[href*="/messaging/compose/"]');
-					await Bun.sleep(2000);
-				}
-
-				const textareaVisible = await browserManager.evaluate<boolean>(
-					`!!document.querySelector('[role="textbox"][contenteditable="true"]')`,
-				);
-
-				if (textareaVisible) {
-					await browserManager.click(
-						'[role="textbox"][contenteditable="true"]',
-					);
-					await Bun.sleep(500);
-					await browserManager.type(messageText);
-					await Bun.sleep(1000);
-
-					const hasSendBtn = await browserManager.evaluate<boolean>(
-						"!!document.querySelector('button[type=\"submit\"]:not([disabled])')",
-					);
-
-					if (hasSendBtn) {
-						await browserManager.click('button[type="submit"]:not([disabled])');
-						await Bun.sleep(1000);
-						return {
-							content: [
-								{
-									type: "text",
-									text: JSON.stringify(
-										{ status: "sent", message: "Message sent successfully" },
-										null,
-										2,
-									),
-								},
-							],
-						};
-					}
-				}
-
-				return {
-					content: [
-						{
-							type: "text",
-							text: JSON.stringify(
-								{ status: "error", message: "Could not send message" },
-								null,
-								2,
-							),
-						},
-					],
+				const result: Record<string, unknown> = {
+					url: await getCurrentUrl(),
+					sections,
+					limit,
 				};
+				if (conversationRefs.length) {
+					result.references = { inbox: conversationRefs };
+				}
+				if (Object.keys(sectionErrors).length) {
+					result.section_errors = sectionErrors;
+				}
+				return toolJson(result);
+			}),
+	);
+
+	server.registerTool(
+		"get_conversation",
+		{
+			title: "Get Conversation",
+			description:
+				"Read a specific messaging conversation by username or thread ID",
+			inputSchema: z.object({
+				linkedin_username: z.string().optional(),
+				thread_id: z.string().optional(),
+				index: z.number().int().min(0).optional().default(0),
+			}),
+			annotations: { readOnlyHint: true, openWorldHint: true },
+		},
+		async (args) =>
+			wrapTool(config, async () => {
+				if (!args.linkedin_username && !args.thread_id) {
+					throw new LinkedInScraperException(
+						"Provide at least one of linkedin_username or thread_id",
+					);
+				}
+
+				const index = args.index ?? 0;
+
+				if (args.thread_id) {
+					await browserManager.navigate(
+						`${LINKEDIN_BASE}/messaging/thread/${args.thread_id}/`,
+					);
+				} else {
+					const username = args.linkedin_username!;
+					await browserManager.navigate(`${LINKEDIN_BASE}/in/${username}/`);
+					await Bun.sleep(1200);
+					const displayName = await readProfileDisplayName();
+					if (!displayName) {
+						throw new LinkedInScraperException(
+							`Could not resolve a display name for ${username}.`,
+						);
+					}
+					const threadUrls =
+						await resolveConversationThreadUrls(displayName);
+					if (!threadUrls.length) {
+						throw new LinkedInScraperException(
+							`Could not find a conversation for ${username}.`,
+						);
+					}
+					if (index >= threadUrls.length) {
+						throw new LinkedInScraperException(
+							`index ${index} out of range: only ${threadUrls.length} thread(s) exist for ${username}.`,
+						);
+					}
+					await browserManager.navigate(threadUrls[index]!);
+				}
+
+				await Bun.sleep(1200);
+				await scrollMainScrollable("top", 3, 400);
+
+				const currentUrl = await getCurrentUrl();
+				const raw = await extractRootContent(browserManager);
+				const sections: Record<string, string> = {};
+				const sectionErrors: Record<string, SectionErrorInfo> = {};
+				applySectionText(
+					sections,
+					sectionErrors,
+					"conversation",
+					stripLinkedinNoise(raw.text),
+				);
+
+				const refs = buildReferences(raw.references, "conversation");
+				const threadClassified = classifyLink(currentUrl);
+				if (threadClassified?.[0] === "conversation") {
+					refs.unshift({
+						kind: "conversation",
+						url: threadClassified[1],
+						context: "conversation",
+					});
+				}
+
+				const result: Record<string, unknown> = {
+					url: currentUrl,
+					sections,
+				};
+				if (refs.length) result.references = { conversation: refs };
+				if (Object.keys(sectionErrors).length) {
+					result.section_errors = sectionErrors;
+				}
+				return toolJson(result);
+			}),
+	);
+
+	server.registerTool(
+		"search_conversations",
+		{
+			title: "Search Conversations",
+			description: "Search messages by keyword",
+			inputSchema: z.object({
+				keywords: z.string(),
+				limit: z.number().int().min(1).max(50).optional().default(20),
+			}),
+			annotations: { readOnlyHint: true, openWorldHint: true },
+		},
+		async (args) =>
+			wrapTool(config, async () => {
+				const url = `${LINKEDIN_BASE}/messaging/?searchTerm=${encodeURIComponent(args.keywords)}`;
+				await browserManager.navigate(url);
+				await Bun.sleep(1500);
+
+				const raw = await extractRootContent(browserManager);
+				const sections: Record<string, string> = {};
+				const sectionErrors: Record<string, SectionErrorInfo> = {};
+				applySectionText(
+					sections,
+					sectionErrors,
+					"search_results",
+					stripLinkedinNoise(raw.text),
+				);
+
+				const limit = args.limit ?? 20;
+				const conversationRefs = !isRateLimitedText(raw.text)
+					? await extractConversationThreadRefs(limit, "search")
+					: [];
+
+				const result: Record<string, unknown> = {
+					url: await getCurrentUrl(),
+					sections,
+					limit,
+				};
+				if (conversationRefs.length) {
+					result.references = { search_results: conversationRefs };
+				}
+				if (Object.keys(sectionErrors).length) {
+					result.section_errors = sectionErrors;
+				}
+				return toolJson(result);
+			}),
+	);
+
+	server.registerTool(
+		"send_message",
+		{
+			title: "Send Message",
+			description:
+				"Send a message to a LinkedIn user. Set confirm_send=true to actually send; false returns confirmation_required without typing.",
+			inputSchema: z.object({
+				linkedin_username: z.string(),
+				message: z.string(),
+				confirm_send: z.boolean(),
+				profile_urn: z.string().optional(),
+			}),
+			annotations: {
+				readOnlyHint: false,
+				openWorldHint: true,
+				destructiveHint: true,
 			},
 		},
-	];
+		async (args) =>
+			wrapTool(config, async () => {
+				const profileUrl = `${LINKEDIN_BASE}/in/${args.linkedin_username}/`;
+				await browserManager.navigate(profileUrl);
+				await Bun.sleep(1200);
+
+				let composeUrl: string | null = null;
+				if (args.profile_urn) {
+					const encoded = encodeURIComponent(
+						`urn:li:fsd_profile:${args.profile_urn}`,
+					);
+					composeUrl =
+						`${LINKEDIN_BASE}/messaging/compose/` +
+						`?profileUrn=${encoded}` +
+						`&recipient=${encodeURIComponent(args.profile_urn)}` +
+						`&screenContext=NON_SELF_PROFILE_VIEW` +
+						`&interop=msgOverlay`;
+				} else {
+					composeUrl = await browserManager.evaluate<string | null>(() => {
+						const a = document.querySelector(
+							'main a[href*="/messaging/compose/"]',
+						) as HTMLAnchorElement | null;
+						return a?.href ?? null;
+					});
+				}
+
+				if (!composeUrl) {
+					return toolJson(
+						messageResult(
+							profileUrl,
+							"message_unavailable",
+							"LinkedIn did not expose a usable Message action for this profile.",
+						),
+					);
+				}
+
+				await browserManager.navigate(composeUrl);
+				await Bun.sleep(2000);
+
+				const picker = await browserManager.waitForSelector(
+					'input[placeholder*="Type a name"], input[aria-label*="Type a name"]',
+					1500,
+				);
+				if (picker) {
+					return toolJson(
+						messageResult(
+							await getCurrentUrl(),
+							"recipient_resolution_failed",
+							"LinkedIn opened a compose page, but the visible recipient did not match the requested profile.",
+						),
+					);
+				}
+
+				const composerReady = await browserManager.waitForSelector(
+					'div[role="textbox"][contenteditable="true"], .msg-form__contenteditable',
+					8000,
+				);
+
+				if (!composerReady) {
+					return toolJson(
+						messageResult(
+							await getCurrentUrl(),
+							"composer_unavailable",
+							"LinkedIn did not expose a usable message composer.",
+						),
+					);
+				}
+
+				if (!args.confirm_send) {
+					return toolJson(
+						messageResult(
+							await getCurrentUrl(),
+							"confirmation_required",
+							"Set confirm_send=true to send the message.",
+							{ recipient_selected: true, sent: false },
+						),
+					);
+				}
+
+				const focused = await browserManager.evaluate<boolean>(() => {
+					const el = document.querySelector(
+						'div[role="textbox"][contenteditable="true"][aria-label*="Write a message"], div[role="textbox"][contenteditable="true"]',
+					) as HTMLElement | null;
+					if (!el) return false;
+					el.focus();
+					return true;
+				});
+				if (!focused) {
+					return toolJson(
+						messageResult(
+							await getCurrentUrl(),
+							"compose_interact_failed",
+							"Could not focus the message composer.",
+							{ recipient_selected: true, sent: false },
+						),
+					);
+				}
+
+				await browserManager.type(args.message);
+				await Bun.sleep(300);
+
+				const clicked = await browserManager.evaluate<boolean>(() => {
+					const btn = document.querySelector(
+						'button[type="submit"]:not([disabled]), button.msg-form__send-button:not([disabled])',
+					) as HTMLButtonElement | null;
+					if (!btn) return false;
+					btn.click();
+					return true;
+				});
+				if (!clicked) {
+					return toolJson(
+						messageResult(
+							await getCurrentUrl(),
+							"send_unavailable",
+							"Send button not available",
+							{ recipient_selected: true, sent: false },
+						),
+					);
+				}
+				await Bun.sleep(1000);
+				return toolJson(
+					messageResult(await getCurrentUrl(), "sent", "Message sent", {
+						recipient_selected: true,
+						sent: true,
+					}),
+				);
+			}),
+	);
 }

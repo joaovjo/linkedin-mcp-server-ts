@@ -1,57 +1,132 @@
+import {
+	createMcpHandler,
+	hostHeaderValidationResponse,
+	originValidationResponse,
+	localhostAllowedHostnames,
+	localhostAllowedOrigins,
+} from "@modelcontextprotocol/server";
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
+import {
+	performImportFromBrowser,
+	performLogin,
+	performLogout,
+	performStatus,
+} from "./browser/auth.ts";
+import { browserManager } from "./browser/manager.ts";
 import { loadConfig } from "./config.ts";
-import { createServer } from "./server.ts";
+import { createMcpServer, SERVER_NAME, SERVER_VERSION } from "./mcp/create-server.ts";
+import { ensureSessionDirs } from "./session/store.ts";
 
 const config = loadConfig();
 
-console.error(`  mcp-server-linkedin v0.1.0`);
-console.error(`   Transport: ${config.transport}`);
-console.error(`   Port: ${config.port}`);
+await ensureSessionDirs(config.userDataDir);
 
-const { handleMcpRequest, closeAll } = await createServer(config);
+if (config.mode === "login") {
+	try {
+		await performLogin(config);
+		process.exit(0);
+	} catch (err) {
+		console.error("Login failed:", err instanceof Error ? err.message : err);
+		process.exit(1);
+	}
+}
 
-Bun.serve({
-	port: config.port,
-	async fetch(req) {
-		const url = new URL(req.url);
+if (config.mode === "logout") {
+	await performLogout(config);
+	process.exit(0);
+}
 
-		if (url.pathname === "/mcp" || url.pathname === "/mcp/") {
-			try {
-				return await handleMcpRequest(req);
-			} catch (err) {
-				const msg = err instanceof Error ? err.message : String(err);
-				console.error("MCP error:", msg);
-				return new Response(
-					JSON.stringify({
-						jsonrpc: "2.0",
-						error: { code: -32603, message: msg },
-						id: null,
-					}),
-					{
-						status: 500,
-						headers: { "Content-Type": "application/json" },
-					},
-				);
+if (config.mode === "status") {
+	process.exit(await performStatus(config));
+}
+
+if (config.mode === "import") {
+	try {
+		await performImportFromBrowser(config);
+		process.exit(0);
+	} catch (err) {
+		console.error("Import failed:", err instanceof Error ? err.message : err);
+		process.exit(1);
+	}
+}
+
+console.error(`  ${SERVER_NAME} v${SERVER_VERSION}`);
+console.error(`  Transport: ${config.transport}`);
+
+try {
+	Bun.dns.prefetch?.("www.linkedin.com");
+} catch {
+	// optional warmup
+}
+
+const closeBrowser = async () => {
+	try {
+		await browserManager.close();
+	} catch {
+		// ignore
+	}
+};
+
+if (config.transport === "stdio") {
+	const handle = serveStdio(() => createMcpServer(config));
+	console.error("  Listening on stdio");
+
+	const shutdown = async () => {
+		console.error("\nShutting down...");
+		await handle.close();
+		await closeBrowser();
+		process.exit(0);
+	};
+	process.on("SIGINT", shutdown);
+	process.on("SIGTERM", shutdown);
+} else {
+	const mcpHandler = createMcpHandler(() => createMcpServer(config), {
+		responseMode: "json",
+	});
+
+	const httpPath = config.httpPath.endsWith("/")
+		? config.httpPath.slice(0, -1)
+		: config.httpPath;
+
+	const server = Bun.serve({
+		hostname: config.host,
+		port: config.port,
+		async fetch(req) {
+			const url = new URL(req.url);
+
+			if (url.pathname === "/health") {
+				return new Response("OK", { status: 200 });
 			}
-		}
 
-		if (url.pathname === "/health") {
-			return new Response("OK", { status: 200 });
-		}
+			if (url.pathname === httpPath || url.pathname === `${httpPath}/`) {
+				const hostErr = hostHeaderValidationResponse(
+					req,
+					localhostAllowedHostnames(),
+				);
+				if (hostErr) return hostErr;
+				const originErr = originValidationResponse(
+					req,
+					localhostAllowedOrigins(),
+				);
+				if (originErr) return originErr;
+				return mcpHandler.fetch(req);
+			}
 
-		return new Response("Not Found", { status: 404 });
-	},
-});
+			return new Response("Not Found", { status: 404 });
+		},
+	});
 
-console.error(`  Server listening on http://localhost:${config.port}/mcp`);
+	console.error(
+		`  Server listening on http://${config.host}:${server.port}${httpPath}`,
+	);
 
-process.on("SIGINT", async () => {
-	console.error("\nShutting down...");
-	await closeAll();
-	process.exit(0);
-});
-
-process.on("SIGTERM", async () => {
-	console.error("\nShutting down...");
-	await closeAll();
-	process.exit(0);
-});
+	const shutdown = async () => {
+		console.error("\nShutting down...");
+		await mcpHandler.close();
+		server.stop(true);
+		await closeBrowser();
+		process.exit(0);
+	};
+	process.on("SIGINT", shutdown);
+	process.on("SIGTERM", shutdown);
+}
