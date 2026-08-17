@@ -1,5 +1,15 @@
 #!/usr/bin/env bun
 
+/**
+ * Main entry point for the LinkedIn Model Context Protocol (MCP) server.
+ *
+ * @remarks
+ * Supports both stdio and streamable-http transports, as well as CLI maintenance modes
+ * (`--login`, `--logout`, `--status`, `--import-from-browser`).
+ *
+ * @packageDocumentation
+ */
+
 import {
 	createMcpHandler,
 	hostHeaderValidationResponse,

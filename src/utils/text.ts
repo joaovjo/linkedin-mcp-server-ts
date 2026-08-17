@@ -93,7 +93,9 @@ export function normalizeWhitespace(text: string): string {
 		.replace(/\r\n/g, "\n")
 		.replace(/\r/g, "\n")
 		.replace(/\t/g, " ")
-		.replace(/[ \u00A0]+/g, " ")
+		.split("\n")
+		.map((line) => line.replace(/[ \u00A0]+/g, " ").trim())
+		.join("\n")
 		.replace(/\n{3,}/g, "\n\n")
 		.trim();
 }

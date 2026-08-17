@@ -2,26 +2,55 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 
+/**
+ * Application configuration options for the LinkedIn MCP server.
+ *
+ * @remarks
+ * Encapsulates network, browser, authentication, viewport, and execution settings.
+ * Options are parsed from CLI arguments and fallback to environment variables.
+ *
+ * @public
+ */
 export interface AppConfig {
+	/** Hostname or IP address for HTTP server binding. Default: `127.0.0.1`. */
 	host: string;
+	/** Port number for HTTP server. Default: `8000`. */
 	port: number;
+	/** HTTP endpoint route for the MCP handler. Default: `/mcp`. */
 	httpPath: string;
+	/** Whether to run Chrome in headless mode. Default: `true`. */
 	headless: boolean;
+	/** Maximum timeout (in seconds) for tool execution. Default: `180`. */
 	toolTimeout: number;
+	/** Page load navigation timeout in milliseconds. Default: `5000`. */
 	pageTimeout: number;
+	/** Maximum timeout (in seconds) for interactive login. Default: `1800`. */
 	loginTimeout: number;
+	/** Inline login wait period in seconds when no session exists. Default: `25`. */
 	loginInlineWait: number;
+	/** Logging severity level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). */
 	logLevel: string;
+	/** Profile directory for Chrome browser storage. */
 	profileDir: string;
+	/** User data directory path for storing session cookies and state. */
 	userDataDir: string;
+	/** Transport protocol mode (`stdio` or `streamable-http`). */
 	transport: "stdio" | "streamable-http";
+	/** Whether to check for upstream package updates on startup. */
 	checkForUpdates: boolean;
+	/** Automatically import authenticated session cookies from local browser profiles. */
 	autoImportFromBrowser: boolean;
+	/** Custom User-Agent header string. */
 	userAgent?: string;
+	/** Explicit path to Chrome or Edge executable binary. */
 	chromePath?: string;
+	/** Browser window dimensions (width x height). */
 	viewport: { width: number; height: number };
+	/** Remote debugging port for Chrome DevTools Protocol. Default: `9222`. */
 	debugPort: number;
+	/** Execution mode (`serve`, `login`, `logout`, `status`, `import`). */
 	mode: "serve" | "login" | "logout" | "status" | "import";
+	/** Optional browser target name for importing cookies. */
 	importBrowser?: string;
 }
 
@@ -41,6 +70,21 @@ function parseViewport(raw: string): { width: number; height: number } {
 	return { width: Number(match[1]), height: Number(match[2]) };
 }
 
+/**
+ * Parses command-line arguments and environment variables into a strongly-typed {@link AppConfig}.
+ *
+ * @param args - Command-line arguments array. Defaults to `Bun.argv.slice(2)`.
+ * @returns The resolved application configuration object.
+ *
+ * @example
+ * ```ts
+ * import { loadConfig } from "./config.ts";
+ * const config = loadConfig(["--transport", "stdio"]);
+ * console.log(config.transport); // "stdio"
+ * ```
+ *
+ * @public
+ */
 export function loadConfig(args: string[] = Bun.argv.slice(2)): AppConfig {
 	const parsed = parseArgs({
 		args,
