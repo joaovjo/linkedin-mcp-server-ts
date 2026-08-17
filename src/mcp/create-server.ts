@@ -8,7 +8,7 @@ import { registerPersonTools } from "../tools/person.ts";
 import { registerPostTools } from "../tools/post.ts";
 import { registerSessionTools } from "../tools/session.ts";
 
-export const SERVER_NAME = "mcp-server-linkedin";
+export const SERVER_NAME = "linkedin-mcp-server-ts";
 export const SERVER_VERSION = "0.1.0";
 
 export function createMcpServer(config: AppConfig): McpServer {

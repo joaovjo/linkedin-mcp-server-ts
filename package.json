@@ -1,10 +1,26 @@
 {
-  "name": "mcp-server-linkedin",
+  "name": "linkedin-mcp-server-ts",
   "version": "0.1.0",
-  "description": "MCP server for LinkedIn scraping and automation (TypeScript + Bun port)",
+  "description": "High-performance TypeScript & Bun MCP server for LinkedIn scraping and automation",
   "module": "src/index.ts",
+  "bin": {
+    "linkedin-mcp-server-ts": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "module",
   "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joaovjo/linkedin-mcp-server-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/joaovjo/linkedin-mcp-server-ts/issues"
+  },
+  "homepage": "https://github.com/joaovjo/linkedin-mcp-server-ts#readme",
   "scripts": {
     "dev": "bun run src/index.ts --transport streamable-http",
     "start": "bun run src/index.ts",
@@ -12,9 +28,9 @@
     "logout": "bun run src/index.ts --logout",
     "status": "bun run src/index.ts --status",
     "test": "bun test",
-    "lint": "biome check src/ tests/",
-    "lint:fix": "biome check --write src/ tests/",
-    "format": "biome format --write src/ tests/"
+    "lint": "bunx @biomejs/biome check src/ tests/",
+    "lint:fix": "bunx @biomejs/biome check --write src/ tests/",
+    "format": "bunx @biomejs/biome format --write src/ tests/"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
@@ -24,6 +40,13 @@
     "@types/bun": "latest",
     "typescript": "^6.0"
   },
-  "keywords": ["mcp", "linkedin", "scraping", "model-context-protocol", "bun"],
-  "license": "Apache-2.0"
+  "keywords": [
+    "mcp",
+    "linkedin",
+    "scraping",
+    "model-context-protocol",
+    "bun",
+    "typescript"
+  ],
+  "license": "MIT"
 }

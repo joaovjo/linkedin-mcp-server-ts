@@ -1,0 +1,6 @@
+[publish]
+# The registry to publish to
+registry = "https://registry.npmjs.org/"
+
+# The access level to publish with
+access = "public"

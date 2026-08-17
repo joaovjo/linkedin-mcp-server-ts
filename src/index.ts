@@ -1,9 +1,11 @@
+#!/usr/bin/env bun
+
 import {
 	createMcpHandler,
 	hostHeaderValidationResponse,
-	originValidationResponse,
 	localhostAllowedHostnames,
 	localhostAllowedOrigins,
+	originValidationResponse,
 } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import {
@@ -14,7 +16,11 @@ import {
 } from "./browser/auth.ts";
 import { browserManager } from "./browser/manager.ts";
 import { loadConfig } from "./config.ts";
-import { createMcpServer, SERVER_NAME, SERVER_VERSION } from "./mcp/create-server.ts";
+import {
+	createMcpServer,
+	SERVER_NAME,
+	SERVER_VERSION,
+} from "./mcp/create-server.ts";
 import { ensureSessionDirs } from "./session/store.ts";
 
 const config = loadConfig();
