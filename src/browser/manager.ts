@@ -143,14 +143,10 @@ class BrowserManager {
 		await this.getView().navigate(url);
 	}
 
-	async evaluate<T = unknown>(
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		script: string | ((...args: any[]) => T),
-		...args: any[]
-	): Promise<T> {
+	async evaluate<T = unknown>(script: string | ((...args: unknown[]) => T), ...args: unknown[]): Promise<T> {
 		const view = this.getView();
 		if (typeof script === "function") {
-			return (await (view.evaluate as (...a: any[]) => Promise<T>)(script, ...args)) as T;
+			return (await (view.evaluate as (...a: unknown[]) => Promise<T>)(script, ...args)) as T;
 		}
 		return (await view.evaluate(script)) as T;
 	}

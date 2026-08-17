@@ -3,7 +3,7 @@
 <p align="left">
   <a href="https://www.npmjs.com/package/linkedin-mcp-server-ts" target="_blank"><img src="https://img.shields.io/npm/v/linkedin-mcp-server-ts?color=cb3837&logo=npm" alt="npm version"></a>
   <a href="https://bun.sh" target="_blank"><img src="https://img.shields.io/badge/Runtime-Bun%201.2+-fbf0df?logo=bun&logoColor=black" alt="Bun Runtime"></a>
-  <a href="https://www.typescriptlang.org/" target="_blank"><img src="https://img.shields.io/badge/Language-TypeScript%206-3178c6?logo=typescript&logoColor=white" alt="TypeScript"></a>
+  <a href="https://www.typescriptlang.org/" target="_blank"><img src="https://img.shields.io/badge/Language-TypeScript%207-3178c6?logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://modelcontextprotocol.io/" target="_blank"><img src="https://img.shields.io/badge/MCP-SDK%202.0-8a2be2" alt="Model Context Protocol"></a>
   <a href="https://github.com/joaovjo/linkedin-mcp-server-ts/blob/main/LICENSE" target="_blank"><img src="https://img.shields.io/badge/License-MIT-3fb950" alt="License: MIT"></a>
   <a href="https://biomejs.dev" target="_blank"><img src="https://img.shields.io/badge/Linter-Biome-60a5fa?logo=biome&logoColor=white" alt="Biome"></a>
@@ -31,7 +31,7 @@ It provides AI assistants (such as Claude Desktop, Cursor, OpenCode, VS Code, an
 | Feature | Python Version (`mcp-server-linkedin`) | TypeScript / Bun Version (`linkedin-mcp-server-ts`) |
 |---|---|---|
 | **Runtime** | Python 3.10+ (`uv` / `uvx`) | Bun 1.2+ (`bun` / `bunx`) |
-| **Language** | Python (`fastmcp`) | TypeScript 6 (`@modelcontextprotocol/server` v2) |
+| **Language** | Python (`fastmcp`) | TypeScript 7 (`@modelcontextprotocol/server` v2) |
 | **Browser Engine** | Patchright Chromium fork | Native `Bun.WebView` + Direct Chrome DevTools Protocol (CDP) |
 | **Memory / Footprint** | Moderate (~150MB+ runtime) | Ultra-lightweight (~30-60MB baseline) |
 | **Transports** | `stdio`, `streamable-http` | `stdio`, `streamable-http` (via native `Bun.serve`) |
