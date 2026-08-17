@@ -12,9 +12,6 @@ try {
 	console.error("\n✓ Login complete. Session saved.");
 	process.exit(0);
 } catch (err) {
-	console.error(
-		"\n✗ Login failed:",
-		err instanceof Error ? err.message : String(err),
-	);
+	console.error("\n✗ Login failed:", err instanceof Error ? err.message : String(err));
 	process.exit(1);
 }

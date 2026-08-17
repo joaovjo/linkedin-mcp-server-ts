@@ -33,12 +33,7 @@ export function wrapTool(
 			}
 			await ensureAuthenticated(config);
 			const result = await fn();
-			if (
-				result &&
-				typeof result === "object" &&
-				"content" in result &&
-				Array.isArray((result as ToolContentResult).content)
-			) {
+			if (result && typeof result === "object" && "content" in result && Array.isArray((result as ToolContentResult).content)) {
 				return result as ToolContentResult;
 			}
 			return toolJson(result);

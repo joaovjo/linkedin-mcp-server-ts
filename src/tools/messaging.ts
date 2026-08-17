@@ -9,26 +9,13 @@ import {
 	resolveConversationThreadUrls,
 } from "../scraping/conversation-refs.ts";
 import { extractRootContent } from "../scraping/dom-extract.ts";
-import {
-	getCurrentUrl,
-	scrollMainScrollable,
-	stripLinkedinNoise,
-} from "../scraping/extractor.ts";
+import { getCurrentUrl, scrollMainScrollable, stripLinkedinNoise } from "../scraping/extractor.ts";
 import { LINKEDIN_BASE } from "../scraping/fields.ts";
 import { buildReferences, classifyLink } from "../scraping/references.ts";
-import {
-	applySectionText,
-	isRateLimitedText,
-	type SectionErrorInfo,
-} from "../scraping/section-result.ts";
+import { applySectionText, isRateLimitedText, type SectionErrorInfo } from "../scraping/section-result.ts";
 import { toolJson, wrapTool } from "./helpers.ts";
 
-function messageResult(
-	url: string,
-	status: string,
-	message: string,
-	extra: Record<string, unknown> = {},
-) {
+function messageResult(url: string, status: string, message: string, extra: Record<string, unknown> = {}) {
 	return {
 		url,
 		status,
@@ -39,16 +26,12 @@ function messageResult(
 	};
 }
 
-export function registerMessagingTools(
-	server: McpServer,
-	config: AppConfig,
-): void {
+export function registerMessagingTools(server: McpServer, config: AppConfig): void {
 	server.registerTool(
 		"get_inbox",
 		{
 			title: "Get Inbox",
-			description:
-				"List recent conversations from the LinkedIn messaging inbox",
+			description: "List recent conversations from the LinkedIn messaging inbox",
 			inputSchema: z.object({
 				limit: z.number().int().min(1).max(50).optional().default(20),
 			}),
@@ -63,17 +46,10 @@ export function registerMessagingTools(
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"inbox",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "inbox", stripLinkedinNoise(raw.text));
 
 				const limit = args.limit ?? 20;
-				const conversationRefs = !isRateLimitedText(raw.text)
-					? await extractConversationThreadRefs(limit, "inbox")
-					: [];
+				const conversationRefs = !isRateLimitedText(raw.text) ? await extractConversationThreadRefs(limit, "inbox") : [];
 
 				const result: Record<string, unknown> = {
 					url: await getCurrentUrl(),
@@ -94,8 +70,7 @@ export function registerMessagingTools(
 		"get_conversation",
 		{
 			title: "Get Conversation",
-			description:
-				"Read a specific messaging conversation by username or thread ID",
+			description: "Read a specific messaging conversation by username or thread ID",
 			inputSchema: z.object({
 				linkedin_username: z.string().optional(),
 				thread_id: z.string().optional(),
@@ -106,32 +81,24 @@ export function registerMessagingTools(
 		async (args) =>
 			wrapTool(config, async () => {
 				if (!args.linkedin_username && !args.thread_id) {
-					throw new LinkedInScraperException(
-						"Provide at least one of linkedin_username or thread_id",
-					);
+					throw new LinkedInScraperException("Provide at least one of linkedin_username or thread_id");
 				}
 
 				const index = args.index ?? 0;
 
 				if (args.thread_id) {
-					await browserManager.navigate(
-						`${LINKEDIN_BASE}/messaging/thread/${args.thread_id}/`,
-					);
+					await browserManager.navigate(`${LINKEDIN_BASE}/messaging/thread/${args.thread_id}/`);
 				} else {
 					const username = args.linkedin_username!;
 					await browserManager.navigate(`${LINKEDIN_BASE}/in/${username}/`);
 					await Bun.sleep(1200);
 					const displayName = await readProfileDisplayName();
 					if (!displayName) {
-						throw new LinkedInScraperException(
-							`Could not resolve a display name for ${username}.`,
-						);
+						throw new LinkedInScraperException(`Could not resolve a display name for ${username}.`);
 					}
 					const threadUrls = await resolveConversationThreadUrls(displayName);
 					if (!threadUrls.length) {
-						throw new LinkedInScraperException(
-							`Could not find a conversation for ${username}.`,
-						);
+						throw new LinkedInScraperException(`Could not find a conversation for ${username}.`);
 					}
 					if (index >= threadUrls.length) {
 						throw new LinkedInScraperException(
@@ -148,12 +115,7 @@ export function registerMessagingTools(
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"conversation",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "conversation", stripLinkedinNoise(raw.text));
 
 				const refs = buildReferences(raw.references, "conversation");
 				const threadClassified = classifyLink(currentUrl);
@@ -197,17 +159,10 @@ export function registerMessagingTools(
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"search_results",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "search_results", stripLinkedinNoise(raw.text));
 
 				const limit = args.limit ?? 20;
-				const conversationRefs = !isRateLimitedText(raw.text)
-					? await extractConversationThreadRefs(limit, "search")
-					: [];
+				const conversationRefs = !isRateLimitedText(raw.text) ? await extractConversationThreadRefs(limit, "search") : [];
 
 				const result: Record<string, unknown> = {
 					url: await getCurrentUrl(),
@@ -250,9 +205,7 @@ export function registerMessagingTools(
 
 				let composeUrl: string | null = null;
 				if (args.profile_urn) {
-					const encoded = encodeURIComponent(
-						`urn:li:fsd_profile:${args.profile_urn}`,
-					);
+					const encoded = encodeURIComponent(`urn:li:fsd_profile:${args.profile_urn}`);
 					composeUrl =
 						`${LINKEDIN_BASE}/messaging/compose/` +
 						`?profileUrn=${encoded}` +
@@ -261,20 +214,14 @@ export function registerMessagingTools(
 						`&interop=msgOverlay`;
 				} else {
 					composeUrl = await browserManager.evaluate<string | null>(() => {
-						const a = document.querySelector(
-							'main a[href*="/messaging/compose/"]',
-						) as HTMLAnchorElement | null;
+						const a = document.querySelector('main a[href*="/messaging/compose/"]') as HTMLAnchorElement | null;
 						return a?.href ?? null;
 					});
 				}
 
 				if (!composeUrl) {
 					return toolJson(
-						messageResult(
-							profileUrl,
-							"message_unavailable",
-							"LinkedIn did not expose a usable Message action for this profile.",
-						),
+						messageResult(profileUrl, "message_unavailable", "LinkedIn did not expose a usable Message action for this profile."),
 					);
 				}
 
@@ -302,22 +249,16 @@ export function registerMessagingTools(
 
 				if (!composerReady) {
 					return toolJson(
-						messageResult(
-							await getCurrentUrl(),
-							"composer_unavailable",
-							"LinkedIn did not expose a usable message composer.",
-						),
+						messageResult(await getCurrentUrl(), "composer_unavailable", "LinkedIn did not expose a usable message composer."),
 					);
 				}
 
 				if (!args.confirm_send) {
 					return toolJson(
-						messageResult(
-							await getCurrentUrl(),
-							"confirmation_required",
-							"Set confirm_send=true to send the message.",
-							{ recipient_selected: true, sent: false },
-						),
+						messageResult(await getCurrentUrl(), "confirmation_required", "Set confirm_send=true to send the message.", {
+							recipient_selected: true,
+							sent: false,
+						}),
 					);
 				}
 
@@ -331,12 +272,10 @@ export function registerMessagingTools(
 				});
 				if (!focused) {
 					return toolJson(
-						messageResult(
-							await getCurrentUrl(),
-							"compose_interact_failed",
-							"Could not focus the message composer.",
-							{ recipient_selected: true, sent: false },
-						),
+						messageResult(await getCurrentUrl(), "compose_interact_failed", "Could not focus the message composer.", {
+							recipient_selected: true,
+							sent: false,
+						}),
 					);
 				}
 
@@ -353,12 +292,10 @@ export function registerMessagingTools(
 				});
 				if (!clicked) {
 					return toolJson(
-						messageResult(
-							await getCurrentUrl(),
-							"send_unavailable",
-							"Send button not available",
-							{ recipient_selected: true, sent: false },
-						),
+						messageResult(await getCurrentUrl(), "send_unavailable", "Send button not available", {
+							recipient_selected: true,
+							sent: false,
+						}),
 					);
 				}
 				await Bun.sleep(1000);

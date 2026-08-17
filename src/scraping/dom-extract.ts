@@ -28,8 +28,7 @@ export async function extractRootContent(
 		(sel: string, prefer: boolean) => {
 			const isVisible = (el: Element) => {
 				const style = window.getComputedStyle(el);
-				if (style.display === "none" || style.visibility === "hidden")
-					return false;
+				if (style.display === "none" || style.visibility === "hidden") return false;
 				const r = el.getBoundingClientRect();
 				return r.width > 0 && r.height > 0;
 			};
@@ -43,9 +42,7 @@ export async function extractRootContent(
 			}
 			if (!root) root = document.querySelector(sel) || document.body;
 
-			const text = ((root as HTMLElement).innerText || "")
-				.replace(/\s+/g, " ")
-				.trim();
+			const text = ((root as HTMLElement).innerText || "").replace(/\s+/g, " ").trim();
 			const refs: RawReference[] = [];
 			const seen = new Set<string>();
 
@@ -65,8 +62,7 @@ export async function extractRootContent(
 			for (const a of root.querySelectorAll("a[href]")) {
 				if (!isVisible(a)) continue;
 				const href = a.getAttribute("href") || "";
-				if (!href || href.startsWith("#") || href.startsWith("javascript:"))
-					continue;
+				if (!href || href.startsWith("#") || href.startsWith("javascript:")) continue;
 				const key = `${href}|${(a.textContent || "").slice(0, 40)}`;
 				if (seen.has(key)) continue;
 				seen.add(key);
@@ -99,20 +95,14 @@ export async function extractRootContent(
 	};
 }
 
-export async function extractProfileUrn(
-	browser: Browser,
-): Promise<string | null> {
+export async function extractProfileUrn(browser: Browser): Promise<string | null> {
 	const urn = await browser.evaluate<string | null>(() => {
-		const anchors = document.querySelectorAll(
-			'main a[href*="/messaging/compose/"]',
-		);
+		const anchors = document.querySelectorAll('main a[href*="/messaging/compose/"]');
 		for (const a of anchors) {
 			try {
 				const href = a.getAttribute("href") || "";
 				const url = new URL(href, location.origin);
-				const recipient =
-					url.searchParams.get("recipient") ||
-					url.searchParams.get("profileUrn");
+				const recipient = url.searchParams.get("recipient") || url.searchParams.get("profileUrn");
 				if (recipient) {
 					const decoded = decodeURIComponent(recipient);
 					const m = /urn:li:fsd_profile:(.+)/.exec(decoded);
@@ -127,13 +117,9 @@ export async function extractProfileUrn(
 	return urn ?? null;
 }
 
-export async function extractCompanyUrnFromDom(
-	browser: Browser,
-): Promise<string | null> {
+export async function extractCompanyUrnFromDom(browser: Browser): Promise<string | null> {
 	const urn = await browser.evaluate<string | null>(() => {
-		const anchors = document.querySelectorAll(
-			'a[href*="/search/results/people/"][href*="currentCompany"]',
-		);
+		const anchors = document.querySelectorAll('a[href*="/search/results/people/"][href*="currentCompany"]');
 		for (const a of anchors) {
 			try {
 				const href = a.getAttribute("href") || "";

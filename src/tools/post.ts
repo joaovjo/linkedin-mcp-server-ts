@@ -3,18 +3,10 @@ import { z } from "zod";
 import { browserManager } from "../browser/manager.ts";
 import type { AppConfig } from "../config.ts";
 import { extractRootContent } from "../scraping/dom-extract.ts";
-import {
-	getCurrentUrl,
-	scrollToBottom,
-	stripLinkedinNoise,
-} from "../scraping/extractor.ts";
+import { getCurrentUrl, scrollToBottom, stripLinkedinNoise } from "../scraping/extractor.ts";
 import { LINKEDIN_BASE } from "../scraping/fields.ts";
 import { buildReferences } from "../scraping/references.ts";
-import {
-	applySectionText,
-	filterValidationError,
-	type SectionErrorInfo,
-} from "../scraping/section-result.ts";
+import { applySectionText, filterValidationError, type SectionErrorInfo } from "../scraping/section-result.ts";
 import { toolJson, wrapTool } from "./helpers.ts";
 
 const DATE_MAP: Record<string, string> = {
@@ -53,10 +45,7 @@ export function registerPostTools(server: McpServer, config: AppConfig): void {
 					origin: "FACETED_SEARCH",
 				});
 				if (args.date_posted) {
-					params.set(
-						"datePosted",
-						JSON.stringify([DATE_MAP[args.date_posted]!]),
-					);
+					params.set("datePosted", JSON.stringify([DATE_MAP[args.date_posted]!]));
 				}
 				const url = `${LINKEDIN_BASE}/search/results/content/?${params}`;
 				await browserManager.navigate(url);
@@ -68,12 +57,7 @@ export function registerPostTools(server: McpServer, config: AppConfig): void {
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"search_results",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "search_results", stripLinkedinNoise(raw.text));
 				const refs = buildReferences(raw.references, "search_results");
 
 				const result: Record<string, unknown> = {

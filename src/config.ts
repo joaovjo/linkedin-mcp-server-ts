@@ -97,11 +97,7 @@ export function loadConfig(args: string[] = Bun.argv.slice(2)): AppConfig {
 
 	const home = homedir();
 	const defaultUserData = join(home, ".linkedin-mcp", "profile");
-	const userDataDir = String(
-		parsed.values["user-data-dir"] ||
-			parsed.values["profile-dir"] ||
-			defaultUserData,
-	);
+	const userDataDir = String(parsed.values["user-data-dir"] || parsed.values["profile-dir"] || defaultUserData);
 
 	let transport = String(parsed.values.transport || "").toLowerCase();
 	if (transport !== "stdio" && transport !== "streamable-http") {
@@ -120,18 +116,13 @@ export function loadConfig(args: string[] = Bun.argv.slice(2)): AppConfig {
 			? true
 			: envBool("AUTO_IMPORT_FROM_BROWSER", true);
 
-	const loginInlineWait = Math.min(
-		45,
-		Math.max(0, Number(parsed.values["login-inline-wait"] ?? 25)),
-	);
+	const loginInlineWait = Math.min(45, Math.max(0, Number(parsed.values["login-inline-wait"] ?? 25)));
 
 	return {
 		host: String(parsed.values.host ?? "127.0.0.1"),
 		port: Number(parsed.values.port ?? 8000),
 		httpPath: String(parsed.values.path ?? "/mcp"),
-		headless: parsed.values["no-headless"]
-			? false
-			: String(parsed.values.headless ?? "true") !== "false",
+		headless: parsed.values["no-headless"] ? false : String(parsed.values.headless ?? "true") !== "false",
 		toolTimeout: Number(parsed.values["tool-timeout"] ?? 180),
 		pageTimeout: Number(parsed.values.timeout ?? 5000),
 		loginTimeout: Number(parsed.values["login-timeout"] ?? 1800),
@@ -140,22 +131,14 @@ export function loadConfig(args: string[] = Bun.argv.slice(2)): AppConfig {
 		profileDir: userDataDir,
 		userDataDir,
 		transport: transport as "stdio" | "streamable-http",
-		checkForUpdates:
-			!parsed.values["no-update-check"] &&
-			envBool("LINKEDIN_MCP_CHECK_FOR_UPDATES", true),
+		checkForUpdates: !parsed.values["no-update-check"] && envBool("LINKEDIN_MCP_CHECK_FOR_UPDATES", true),
 		autoImportFromBrowser: autoImport,
-		userAgent: parsed.values["user-agent"]
-			? String(parsed.values["user-agent"])
-			: undefined,
-		chromePath: parsed.values["chrome-path"]
-			? String(parsed.values["chrome-path"])
-			: undefined,
+		userAgent: parsed.values["user-agent"] ? String(parsed.values["user-agent"]) : undefined,
+		chromePath: parsed.values["chrome-path"] ? String(parsed.values["chrome-path"]) : undefined,
 		viewport: parseViewport(String(parsed.values.viewport ?? "1280x720")),
 		debugPort: Number(parsed.values["debug-port"] ?? 9222),
 		mode,
 		importBrowser:
-			parsed.values["import-from-browser"] === undefined
-				? undefined
-				: String(parsed.values["import-from-browser"] || "auto"),
+			parsed.values["import-from-browser"] === undefined ? undefined : String(parsed.values["import-from-browser"] || "auto"),
 	};
 }

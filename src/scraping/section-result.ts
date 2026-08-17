@@ -1,7 +1,8 @@
+import { COMPANY_SECTIONS, PERSON_SECTIONS } from "./fields.ts";
+
 /** Soft rate-limit sentinel — Python `_RATE_LIMITED_MSG` parity. */
 
-export const RATE_LIMITED_MSG =
-	"[Rate limited] LinkedIn blocked this section. Try again later or request fewer sections.";
+export const RATE_LIMITED_MSG = "[Rate limited] LinkedIn blocked this section. Try again later or request fewer sections.";
 
 export interface SectionErrorInfo {
 	error_type: string;
@@ -10,9 +11,7 @@ export interface SectionErrorInfo {
 
 export function isRateLimitedText(text: string | undefined | null): boolean {
 	if (!text) return false;
-	return (
-		text === RATE_LIMITED_MSG || text.toLowerCase().includes("rate limited")
-	);
+	return text === RATE_LIMITED_MSG || text.toLowerCase().includes("rate limited");
 }
 
 /** Apply Python-style section envelope: RL goes to section_errors, not sections. */
@@ -46,10 +45,7 @@ export function filterValidationError(message: string): Error {
 	return err;
 }
 
-export function normalizeCsv(
-	value: string,
-	mapping: Record<string, string>,
-): string {
+export function normalizeCsv(value: string, mapping: Record<string, string>): string {
 	return value
 		.split(",")
 		.map((v) => v.trim())
@@ -69,18 +65,8 @@ export function parseSectionNames(raw: string | undefined): {
 	if (!raw) return { names, unknown, known };
 
 	const validNames = new Set<string>([
-		"about",
-		"experience",
-		"education",
-		"interests",
-		"honors",
-		"languages",
-		"certifications",
-		"skills",
-		"projects",
-		"contact_info",
-		"posts",
-		"jobs",
+		...Object.keys(PERSON_SECTIONS),
+		...Object.keys(COMPANY_SECTIONS),
 		"main_profile",
 		"search_results",
 		"employees",

@@ -2,10 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { loadConfig } from "../src/config.ts";
 import { createMcpServer } from "../src/mcp/create-server.ts";
-import {
-	type ActionSignals,
-	detectConnectionState,
-} from "../src/scraping/connection.ts";
+import { type ActionSignals, detectConnectionState } from "../src/scraping/connection.ts";
 import { stripLinkedinNoise } from "../src/scraping/extractor.ts";
 import {
 	buildFeedReferences,
@@ -14,12 +11,7 @@ import {
 	firstCompanyUrnFromQuery,
 	normalizeUrl,
 } from "../src/scraping/link-metadata.ts";
-import {
-	applySectionText,
-	normalizeCsv,
-	parseSectionNames,
-	RATE_LIMITED_MSG,
-} from "../src/scraping/section-result.ts";
+import { applySectionText, normalizeCsv, parseSectionNames, RATE_LIMITED_MSG } from "../src/scraping/section-result.ts";
 
 const EXPECTED_TOOLS = [
 	"get_person_profile",
@@ -83,9 +75,7 @@ describe("MCP contract", () => {
 	test("registers all 19 tools", () => {
 		const cfg = loadConfig(["--transport", "stdio"]);
 		const server = createMcpServer(cfg);
-		const registered = (
-			server as unknown as { _registeredTools: Record<string, unknown> }
-		)._registeredTools;
+		const registered = (server as unknown as { _registeredTools: Record<string, unknown> })._registeredTools;
 		const names = Object.keys(registered);
 		for (const name of EXPECTED_TOOLS) {
 			expect(names).toContain(name);
@@ -110,9 +100,7 @@ describe("MCP contract", () => {
 			message: z.string(),
 			confirm_send: z.boolean(),
 		});
-		expect(() =>
-			schema.parse({ linkedin_username: "a", message: "hi" }),
-		).toThrow();
+		expect(() => schema.parse({ linkedin_username: "a", message: "hi" })).toThrow();
 		expect(
 			schema.parse({
 				linkedin_username: "a",
@@ -131,47 +119,23 @@ describe("MCP contract", () => {
 
 describe("link-metadata", () => {
 	test("normalizeUrl strips hash and resolves relative", () => {
-		expect(normalizeUrl("/in/alice/#about")).toBe(
-			"https://www.linkedin.com/in/alice/",
-		);
-		expect(normalizeUrl("https://www.linkedin.com/in/bob/?trk=x#y")).toBe(
-			"https://www.linkedin.com/in/bob/?trk=x",
-		);
+		expect(normalizeUrl("/in/alice/#about")).toBe("https://www.linkedin.com/in/alice/");
+		expect(normalizeUrl("https://www.linkedin.com/in/bob/?trk=x#y")).toBe("https://www.linkedin.com/in/bob/?trk=x");
 	});
 
 	test("classifyLink kinds cover person company job feed conversation", () => {
-		expect(classifyLink("https://www.linkedin.com/in/alice/")).toEqual([
-			"person",
-			"/in/alice/",
-		]);
-		expect(classifyLink("/company/docker/")).toEqual([
-			"company",
-			"/company/docker/",
-		]);
-		expect(classifyLink("/jobs/view/12345/")).toEqual([
-			"job",
-			"/jobs/view/12345/",
-		]);
-		expect(classifyLink("/feed/update/urn:li:activity:99/")).toEqual([
-			"feed_post",
-			"/feed/update/urn:li:activity:99/",
-		]);
-		expect(classifyLink("/posts/alice_activity-1/")).toEqual([
-			"feed_post",
-			"/posts/alice_activity-1",
-		]);
-		expect(classifyLink("/messaging/thread/abc123/")).toEqual([
-			"conversation",
-			"/messaging/thread/abc123/",
-		]);
+		expect(classifyLink("https://www.linkedin.com/in/alice/")).toEqual(["person", "/in/alice/"]);
+		expect(classifyLink("/company/docker/")).toEqual(["company", "/company/docker/"]);
+		expect(classifyLink("/jobs/view/12345/")).toEqual(["job", "/jobs/view/12345/"]);
+		expect(classifyLink("/feed/update/urn:li:activity:99/")).toEqual(["feed_post", "/feed/update/urn:li:activity:99/"]);
+		expect(classifyLink("/posts/alice_activity-1/")).toEqual(["feed_post", "/posts/alice_activity-1"]);
+		expect(classifyLink("/messaging/thread/abc123/")).toEqual(["conversation", "/messaging/thread/abc123/"]);
 	});
 
 	test("company_urn from currentCompany query", () => {
 		const urn = firstCompanyUrnFromQuery('currentCompany=["1441"]');
 		expect(urn).toBe("1441");
-		const classified = classifyLink(
-			"/search/results/people/?currentCompany=%5B%221441%22%5D",
-		);
+		const classified = classifyLink("/search/results/people/?currentCompany=%5B%221441%22%5D");
 		expect(classified?.[0]).toBe("company_urn");
 		expect(classified?.[1]).toContain("1441");
 	});
@@ -184,19 +148,12 @@ describe("link-metadata", () => {
 			],
 			"main_profile",
 		);
-		expect(
-			refs.some((r) => r.kind === "person" && r.url === "/in/alice/"),
-		).toBe(true);
-		expect(
-			refs.some((r) => r.kind === "company" && r.url === "/company/docker/"),
-		).toBe(true);
+		expect(refs.some((r) => r.kind === "person" && r.url === "/in/alice/")).toBe(true);
+		expect(refs.some((r) => r.kind === "company" && r.url === "/company/docker/")).toBe(true);
 	});
 
 	test("buildFeedReferences keeps relative feed_post urls", () => {
-		const refs = buildFeedReferences(
-			[{ href: "https://www.linkedin.com/feed/update/urn:li:activity:1/" }],
-			["/posts/foo_bar-2"],
-		);
+		const refs = buildFeedReferences([{ href: "https://www.linkedin.com/feed/update/urn:li:activity:1/" }], ["/posts/foo_bar-2"]);
 		expect(refs.every((r) => r.kind === "feed_post")).toBe(true);
 		expect(refs.every((r) => r.url.startsWith("/"))).toBe(true);
 	});
@@ -213,9 +170,7 @@ describe("connection state machine", () => {
 	};
 
 	test("invite anchor => connectable", () => {
-		expect(detectConnectionState({ ...base, has_invite_anchor: true })).toBe(
-			"connectable",
-		);
+		expect(detectConnectionState({ ...base, has_invite_anchor: true })).toBe("connectable");
 	});
 
 	test("compose without labeled button => already_connected", () => {
@@ -266,9 +221,7 @@ describe("search_people location param", () => {
 
 describe("job filters", () => {
 	test("maps job_type / experience / work_type / f_EA", () => {
-		expect(
-			normalizeCsv("full_time,remote", { full_time: "F", remote: "2" }),
-		).toBe("F,2");
+		expect(normalizeCsv("full_time,remote", { full_time: "F", remote: "2" })).toBe("F,2");
 		const params = new URLSearchParams();
 		params.set("f_EA", "true");
 		expect(params.get("f_EA")).toBe("true");
@@ -288,10 +241,7 @@ describe("section name parsing", () => {
 describe("section_errors envelope", () => {
 	test("rate-limit goes to section_errors not sections", () => {
 		const sections: Record<string, string> = {};
-		const errors: Record<
-			string,
-			{ error_type: string; error_message: string }
-		> = {};
+		const errors: Record<string, { error_type: string; error_message: string }> = {};
 		applySectionText(sections, errors, "about", RATE_LIMITED_MSG);
 		expect(sections.about).toBeUndefined();
 		expect(errors.about?.error_type).toBe("rate_limited");

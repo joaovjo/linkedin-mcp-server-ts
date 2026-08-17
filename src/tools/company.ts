@@ -11,23 +11,13 @@ import {
 	stripLinkedinNoise,
 } from "../scraping/extractor.ts";
 import { COMPANY_SECTIONS, LINKEDIN_BASE } from "../scraping/fields.ts";
-import {
-	buildReferences,
-	extractProfileReferences,
-	type Reference,
-} from "../scraping/references.ts";
-import {
-	applySectionText,
-	type SectionErrorInfo,
-} from "../scraping/section-result.ts";
+import { buildReferences, extractProfileReferences, type Reference } from "../scraping/references.ts";
+import { applySectionText, type SectionErrorInfo } from "../scraping/section-result.ts";
 import { toolJson, wrapTool } from "./helpers.ts";
 
 const COMPANY_SECTION_NAMES = new Set(Object.keys(COMPANY_SECTIONS));
 
-export function registerCompanyTools(
-	server: McpServer,
-	config: AppConfig,
-): void {
+export function registerCompanyTools(server: McpServer, config: AppConfig): void {
 	server.registerTool(
 		"get_company_profile",
 		{
@@ -35,9 +25,7 @@ export function registerCompanyTools(
 			description:
 				"Get a specific company's LinkedIn profile. The about page is always included. Available sections: posts, jobs",
 			inputSchema: z.object({
-				company_name: z
-					.string()
-					.describe('LinkedIn company slug (e.g., "docker", "anthropic")'),
+				company_name: z.string().describe('LinkedIn company slug (e.g., "docker", "anthropic")'),
 				sections: z.string().optional(),
 			}),
 			annotations: { readOnlyHint: true, openWorldHint: true },
@@ -50,13 +38,7 @@ export function registerCompanyTools(
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
 				const unknownSections: string[] = [];
 
-				applySectionText(
-					sections,
-					sectionErrors,
-					"about",
-					about.text,
-					about.error,
-				);
+				applySectionText(sections, sectionErrors, "about", about.text, about.error);
 				if (about.references.length && sections.about) {
 					references.about = about.references;
 				}
@@ -70,19 +52,8 @@ export function registerCompanyTools(
 							continue;
 						}
 						const def = COMPANY_SECTIONS[name]!;
-						const result = await extractSection(
-							name,
-							def,
-							args.company_name,
-							name === "posts" ? 10 : 5,
-						);
-						applySectionText(
-							sections,
-							sectionErrors,
-							name,
-							result.text,
-							result.error,
-						);
+						const result = await extractSection(name, def, args.company_name, name === "posts" ? 10 : 5);
+						applySectionText(sections, sectionErrors, name, result.text, result.error);
 						if (result.references.length && sections[name]) {
 							references[name] = result.references;
 						}
@@ -95,8 +66,7 @@ export function registerCompanyTools(
 				};
 				if (about.company_urn) result.company_urn = about.company_urn;
 				if (Object.keys(references).length) result.references = references;
-				if (Object.keys(sectionErrors).length)
-					result.section_errors = sectionErrors;
+				if (Object.keys(sectionErrors).length) result.section_errors = sectionErrors;
 				if (unknownSections.length) result.unknown_sections = unknownSections;
 				return toolJson(result);
 			}),
@@ -121,12 +91,7 @@ export function registerCompanyTools(
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"posts",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "posts", stripLinkedinNoise(raw.text));
 				const refs = buildReferences(raw.references, "posts");
 				const result: Record<string, unknown> = {
 					url: await getCurrentUrl(),
@@ -158,12 +123,7 @@ export function registerCompanyTools(
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"search_results",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "search_results", stripLinkedinNoise(raw.text));
 				const refs = buildReferences(raw.references, "search_results");
 				const result: Record<string, unknown> = {
 					url: await getCurrentUrl(),
@@ -183,8 +143,7 @@ export function registerCompanyTools(
 		"get_company_employees",
 		{
 			title: "Get Company Employees",
-			description:
-				"List employees at a company from the /people/ page, with optional keyword filter",
+			description: "List employees at a company from the /people/ page, with optional keyword filter",
 			inputSchema: z.object({
 				company_name: z.string().describe("Company slug"),
 				keywords: z.string().optional(),
@@ -203,12 +162,7 @@ export function registerCompanyTools(
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"employees",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "employees", stripLinkedinNoise(raw.text));
 				const profiles = await extractProfileReferences(40);
 				const result: Record<string, unknown> = {
 					url: await getCurrentUrl(),

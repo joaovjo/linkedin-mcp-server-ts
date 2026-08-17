@@ -28,10 +28,7 @@ function formatErrorMessage(err: unknown): string {
 	if (err instanceof SessionExpiredError) {
 		return "Session expired. Run with --login to create a new browser profile.";
 	}
-	if (
-		err instanceof AuthenticationInProgressError ||
-		err instanceof AuthenticationStartedError
-	) {
+	if (err instanceof AuthenticationInProgressError || err instanceof AuthenticationStartedError) {
 		return err.message;
 	}
 	if (err instanceof CredentialsNotFoundError) {
@@ -52,10 +49,7 @@ function formatErrorMessage(err: unknown): string {
 	if (err instanceof Error && err.name === "FilterValidationError") {
 		return err.message;
 	}
-	if (
-		err instanceof LinkedInMCPError ||
-		err instanceof LinkedInScraperException
-	) {
+	if (err instanceof LinkedInMCPError || err instanceof LinkedInScraperException) {
 		return err.message;
 	}
 	if (err instanceof Error) {

@@ -121,32 +121,18 @@ function isLinkedInChrome(path: string): boolean {
 	if (!segments.length) return false;
 	const first = segments[0]!;
 	const second = segments[1] ?? "";
-	if (
-		[
-			"help",
-			"legal",
-			"about",
-			"accessibility",
-			"mypreferences",
-			"preferences",
-		].includes(first)
-	) {
+	if (["help", "legal", "about", "accessibility", "mypreferences", "preferences"].includes(first)) {
 		return true;
 	}
 	if (first === "search" && second === "results") return true;
-	if (
-		first === "overlay" &&
-		["background-photo", "browsemap-recommendations"].includes(second)
-	) {
+	if (first === "overlay" && ["background-photo", "browsemap-recommendations"].includes(second)) {
 		return true;
 	}
 	return first === "preload" && second === "custom-invite";
 }
 
 export function firstCompanyUrnFromQuery(query: string): string | null {
-	const params = new URLSearchParams(
-		query.startsWith("?") ? query.slice(1) : query,
-	);
+	const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
 	const values = params.getAll("currentCompany");
 	if (!values.length) return null;
 	const match = FIRST_URN_RE.exec(values[0]!);
@@ -171,9 +157,7 @@ export function normalizeUrl(href: string, depth = 0): string | null {
 
 	const host = parsed.hostname.toLowerCase();
 	if (isLinkedInHost(host) && parsed.pathname === "/redir/redirect/") {
-		const target = decodeURIComponent(
-			parsed.searchParams.get("url") ?? "",
-		).trim();
+		const target = decodeURIComponent(parsed.searchParams.get("url") ?? "").trim();
 		if (!target) return null;
 		return normalizeUrl(target, depth + 1);
 	}
@@ -201,19 +185,13 @@ export function classifyLink(href: string): [ReferenceKind, string] | null {
 	const path = parsed.pathname || "/";
 
 	if (!isLinkedInHost(host)) {
-		return [
-			"external",
-			`${parsed.protocol}//${parsed.host}${parsed.pathname || "/"}`,
-		];
+		return ["external", `${parsed.protocol}//${parsed.host}${parsed.pathname || "/"}`];
 	}
 
 	if (path.replace(/\/$/, "") === "/search/results/people") {
 		const urnId = firstCompanyUrnFromQuery(parsed.search);
 		if (urnId) {
-			return [
-				"company_urn",
-				`/search/results/people/?currentCompany=%5B%22${urnId}%22%5D`,
-			];
+			return ["company_urn", `/search/results/people/?currentCompany=%5B%22${urnId}%22%5D`];
 		}
 	}
 
@@ -288,10 +266,7 @@ export function cleanLabel(value: string, kind: ReferenceKind): string | null {
 	return value;
 }
 
-function chooseReferenceText(
-	raw: RawReference,
-	kind: ReferenceKind,
-): string | null {
+function chooseReferenceText(raw: RawReference, kind: ReferenceKind): string | null {
 	const candidates: Array<[number, string]> = [];
 	for (const [priority, candidate] of [
 		[0, raw.text ?? ""],
@@ -316,11 +291,7 @@ function cleanHeading(value: string): string | null {
 	return CONTEXT_LABELS.has(value) ? value : null;
 }
 
-function deriveContext(
-	sectionName: string,
-	raw: RawReference,
-	kind: ReferenceKind,
-): string | null {
+function deriveContext(sectionName: string, raw: RawReference, kind: ReferenceKind): string | null {
 	if (sectionName in SECTION_CONTEXTS) return SECTION_CONTEXTS[sectionName]!;
 	const heading = cleanHeading(raw.heading ?? "");
 
@@ -340,10 +311,7 @@ function deriveContext(
 	return heading;
 }
 
-export function normalizeReference(
-	raw: RawReference,
-	sectionName: string,
-): Reference | null {
+export function normalizeReference(raw: RawReference, sectionName: string): Reference | null {
 	if (raw.in_nav || raw.in_footer) return null;
 	const href = normalizeUrl(raw.href ?? "");
 	if (!href) return null;
@@ -355,19 +323,14 @@ export function normalizeReference(
 	if (kind !== "company_urn") {
 		text = chooseReferenceText(raw, kind);
 	}
-	if (
-		text === null &&
-		!["feed_post", "external", "conversation", "company_urn"].includes(kind)
-	) {
+	if (text === null && !["feed_post", "external", "conversation", "company_urn"].includes(kind)) {
 		return null;
 	}
 
 	const reference: Reference = { kind, url: normalizedUrl };
 	if (kind === "company_urn") {
 		const urnId = firstCompanyUrnFromQuery(
-			normalizedUrl.includes("?")
-				? normalizedUrl.slice(normalizedUrl.indexOf("?") + 1)
-				: "",
+			normalizedUrl.includes("?") ? normalizedUrl.slice(normalizedUrl.indexOf("?") + 1) : "",
 		);
 		if (urnId) reference.value = urnId;
 	}
@@ -378,17 +341,10 @@ export function normalizeReference(
 }
 
 function referenceScore(ref: Reference): [number, number, number] {
-	return [
-		ref.text ? 1 : 0,
-		ref.context ? 1 : 0,
-		ref.text?.length ?? Number.NEGATIVE_INFINITY,
-	];
+	return [ref.text ? 1 : 0, ref.context ? 1 : 0, ref.text?.length ?? Number.NEGATIVE_INFINITY];
 }
 
-export function dedupeReferences(
-	references: Reference[],
-	cap?: number,
-): Reference[] {
+export function dedupeReferences(references: Reference[], cap?: number): Reference[] {
 	const deduped = new Map<string, Reference>();
 	const orderedUrls: string[] = [];
 	for (const reference of references) {
@@ -400,20 +356,14 @@ export function dedupeReferences(
 		}
 		const a = referenceScore(existing);
 		const b = referenceScore(reference);
-		const better =
-			b[0] > a[0] ||
-			(b[0] === a[0] && b[1] > a[1]) ||
-			(b[0] === a[0] && b[1] === a[1] && b[2] > a[2]);
+		const better = b[0] > a[0] || (b[0] === a[0] && b[1] > a[1]) || (b[0] === a[0] && b[1] === a[1] && b[2] > a[2]);
 		if (better) deduped.set(reference.url, reference);
 	}
 	const ordered = orderedUrls.map((u) => deduped.get(u)!);
 	return cap !== undefined ? ordered.slice(0, cap) : ordered;
 }
 
-export function buildReferences(
-	rawReferences: RawReference[],
-	sectionName: string,
-): Reference[] {
+export function buildReferences(rawReferences: RawReference[], sectionName: string): Reference[] {
 	const cap = REFERENCE_CAPS[sectionName] ?? DEFAULT_REFERENCE_CAP;
 	const normalized: Reference[] = [];
 	for (const raw of rawReferences) {
@@ -423,13 +373,8 @@ export function buildReferences(
 	return dedupeReferences(normalized, cap);
 }
 
-export function buildFeedReferences(
-	rawReferences: RawReference[],
-	extraRelativeUrls: string[] = [],
-): Reference[] {
-	const fromDom = buildReferences(rawReferences, "feed").filter(
-		(r) => r.kind === "feed_post",
-	);
+export function buildFeedReferences(rawReferences: RawReference[], extraRelativeUrls: string[] = []): Reference[] {
+	const fromDom = buildReferences(rawReferences, "feed").filter((r) => r.kind === "feed_post");
 	const extras: Reference[] = [];
 	for (const url of extraRelativeUrls) {
 		const classified = classifyLink(

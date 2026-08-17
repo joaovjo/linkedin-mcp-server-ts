@@ -12,25 +12,14 @@ import {
 	stripLinkedinNoise,
 } from "../scraping/extractor.ts";
 import { LINKEDIN_BASE, PERSON_SECTIONS } from "../scraping/fields.ts";
-import {
-	buildReferences,
-	extractSidebarProfiles,
-	type Reference,
-} from "../scraping/references.ts";
-import {
-	applySectionText,
-	filterValidationError,
-	type SectionErrorInfo,
-} from "../scraping/section-result.ts";
+import { buildReferences, extractSidebarProfiles, type Reference } from "../scraping/references.ts";
+import { applySectionText, filterValidationError, type SectionErrorInfo } from "../scraping/section-result.ts";
 import { toolJson, wrapTool } from "./helpers.ts";
 
 const PERSON_SECTION_NAMES = new Set(Object.keys(PERSON_SECTIONS));
 const NETWORK_TOKENS = new Set(["F", "S", "O"]);
 
-export function registerPersonTools(
-	server: McpServer,
-	config: AppConfig,
-): void {
+export function registerPersonTools(server: McpServer, config: AppConfig): void {
 	server.registerTool(
 		"get_person_profile",
 		{
@@ -39,11 +28,7 @@ export function registerPersonTools(
 				"Get a specific person's LinkedIn profile. The main profile page is always included. " +
 				"Available sections: experience, education, interests, honors, languages, certifications, skills, projects, contact_info, posts",
 			inputSchema: z.object({
-				linkedin_username: z
-					.string()
-					.describe(
-						'LinkedIn username (e.g., "stickerdaniel", "williamhgates")',
-					),
+				linkedin_username: z.string().describe('LinkedIn username (e.g., "stickerdaniel", "williamhgates")'),
 				sections: z
 					.string()
 					.optional()
@@ -56,9 +41,7 @@ export function registerPersonTools(
 					.min(1)
 					.max(50)
 					.optional()
-					.describe(
-						"Maximum pagination attempts per section (1-50). Default uses 5 for detail sections and 10 for posts.",
-					),
+					.describe("Maximum pagination attempts per section (1-50). Default uses 5 for detail sections and 10 for posts."),
 			}),
 			annotations: { readOnlyHint: true, openWorldHint: true },
 		},
@@ -70,13 +53,7 @@ export function registerPersonTools(
 				const unknownSections: string[] = [];
 
 				const main = await extractPersonProfile(args.linkedin_username);
-				applySectionText(
-					sections,
-					sectionErrors,
-					"main_profile",
-					main.text,
-					main.error,
-				);
+				applySectionText(sections, sectionErrors, "main_profile", main.text, main.error);
 				if (main.references.length && sections.main_profile) {
 					references.main_profile = main.references;
 				}
@@ -92,19 +69,8 @@ export function registerPersonTools(
 							continue;
 						}
 						const def = PERSON_SECTIONS[name]!;
-						const result = await extractSection(
-							name,
-							def,
-							args.linkedin_username,
-							args.max_scrolls,
-						);
-						applySectionText(
-							sections,
-							sectionErrors,
-							name,
-							result.text,
-							result.error,
-						);
+						const result = await extractSection(name, def, args.linkedin_username, args.max_scrolls);
+						applySectionText(sections, sectionErrors, name, result.text, result.error);
 						if (result.references.length && sections[name]) {
 							references[name] = result.references;
 						}
@@ -117,8 +83,7 @@ export function registerPersonTools(
 				};
 				if (Object.keys(references).length) result.references = references;
 				if (profileUrn) result.profile_urn = profileUrn;
-				if (Object.keys(sectionErrors).length)
-					result.section_errors = sectionErrors;
+				if (Object.keys(sectionErrors).length) result.section_errors = sectionErrors;
 				if (unknownSections.length) result.unknown_sections = unknownSections;
 				return toolJson(result);
 			}),
@@ -136,10 +101,7 @@ export function registerPersonTools(
 					.array(z.enum(["F", "S", "O"]))
 					.optional()
 					.describe("Connection degrees: F=1st, S=2nd, O=3rd+"),
-				current_company: z
-					.string()
-					.optional()
-					.describe("Numeric company URN id for currentCompany facet"),
+				current_company: z.string().optional().describe("Numeric company URN id for currentCompany facet"),
 			}),
 			annotations: { readOnlyHint: true, openWorldHint: true },
 		},
@@ -148,19 +110,12 @@ export function registerPersonTools(
 				if (args.network?.length) {
 					for (const n of args.network) {
 						if (!NETWORK_TOKENS.has(n)) {
-							throw filterValidationError(
-								`Invalid network token '${n}'. Expected one of: F, S, O.`,
-							);
+							throw filterValidationError(`Invalid network token '${n}'. Expected one of: F, S, O.`);
 						}
 					}
 				}
-				if (
-					args.current_company !== undefined &&
-					!/^\d+$/.test(args.current_company)
-				) {
-					throw filterValidationError(
-						`current_company must be a numeric URN id (got '${args.current_company}').`,
-					);
+				if (args.current_company !== undefined && !/^\d+$/.test(args.current_company)) {
+					throw filterValidationError(`current_company must be a numeric URN id (got '${args.current_company}').`);
 				}
 
 				const params = new URLSearchParams({ keywords: args.keywords });
@@ -177,12 +132,7 @@ export function registerPersonTools(
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"search_results",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "search_results", stripLinkedinNoise(raw.text));
 				const refs = buildReferences(raw.references, "search_results");
 				const result: Record<string, unknown> = {
 					url: await getCurrentUrl(),
@@ -202,8 +152,7 @@ export function registerPersonTools(
 		"connect_with_person",
 		{
 			title: "Connect With Person",
-			description:
-				"Send a connection request or accept an incoming one, with optional note",
+			description: "Send a connection request or accept an incoming one, with optional note",
 			inputSchema: z.object({
 				linkedin_username: z.string(),
 				note: z.string().optional(),
@@ -216,10 +165,7 @@ export function registerPersonTools(
 		},
 		async (args) =>
 			wrapTool(config, async () => {
-				const result = await connectWithPerson(
-					args.linkedin_username,
-					args.note,
-				);
+				const result = await connectWithPerson(args.linkedin_username, args.note);
 				return toolJson(result);
 			}),
 	);
@@ -228,8 +174,7 @@ export function registerPersonTools(
 		"get_sidebar_profiles",
 		{
 			title: "Get Sidebar Profiles",
-			description:
-				"Extract profile URLs from sidebar recommendation sections on a profile page",
+			description: "Extract profile URLs from sidebar recommendation sections on a profile page",
 			inputSchema: z.object({
 				linkedin_username: z.string(),
 			}),
@@ -237,9 +182,7 @@ export function registerPersonTools(
 		},
 		async (args) =>
 			wrapTool(config, async () => {
-				await browserManager.navigate(
-					`${LINKEDIN_BASE}/in/${args.linkedin_username}/`,
-				);
+				await browserManager.navigate(`${LINKEDIN_BASE}/in/${args.linkedin_username}/`);
 				await Bun.sleep(1500);
 				const sidebar = await extractSidebarProfiles();
 				return toolJson({
@@ -253,8 +196,7 @@ export function registerPersonTools(
 		"get_my_profile",
 		{
 			title: "Get My Profile",
-			description:
-				"Get the authenticated user's own LinkedIn profile (same sections as get_person_profile)",
+			description: "Get the authenticated user's own LinkedIn profile (same sections as get_person_profile)",
 			inputSchema: z.object({
 				sections: z.string().optional(),
 				max_scrolls: z.number().int().min(1).max(50).optional(),
@@ -276,24 +218,13 @@ export function registerPersonTools(
 
 				if (username) {
 					const main = await extractPersonProfile(username);
-					applySectionText(
-						sections,
-						sectionErrors,
-						"main_profile",
-						main.text,
-						main.error,
-					);
+					applySectionText(sections, sectionErrors, "main_profile", main.text, main.error);
 					if (main.references.length && sections.main_profile) {
 						references.main_profile = main.references;
 					}
 				} else {
 					const raw = await extractRootContent(browserManager);
-					applySectionText(
-						sections,
-						sectionErrors,
-						"main_profile",
-						stripLinkedinNoise(raw.text),
-					);
+					applySectionText(sections, sectionErrors, "main_profile", stripLinkedinNoise(raw.text));
 					const refs = buildReferences(raw.references, "main_profile");
 					if (refs.length && sections.main_profile) {
 						references.main_profile = refs;
@@ -313,25 +244,13 @@ export function registerPersonTools(
 						if (!username) {
 							sectionErrors[name] = {
 								error_type: "extraction_error",
-								error_message:
-									"Could not resolve /in/me/ to a vanity username for section scrape.",
+								error_message: "Could not resolve /in/me/ to a vanity username for section scrape.",
 							};
 							continue;
 						}
 						const def = PERSON_SECTIONS[name]!;
-						const result = await extractSection(
-							name,
-							def,
-							username,
-							args.max_scrolls,
-						);
-						applySectionText(
-							sections,
-							sectionErrors,
-							name,
-							result.text,
-							result.error,
-						);
+						const result = await extractSection(name, def, username, args.max_scrolls);
+						applySectionText(sections, sectionErrors, name, result.text, result.error);
 						if (result.references.length && sections[name]) {
 							references[name] = result.references;
 						}
@@ -341,8 +260,7 @@ export function registerPersonTools(
 				const result: Record<string, unknown> = { url, sections };
 				if (Object.keys(references).length) result.references = references;
 				if (profileUrn) result.profile_urn = profileUrn;
-				if (Object.keys(sectionErrors).length)
-					result.section_errors = sectionErrors;
+				if (Object.keys(sectionErrors).length) result.section_errors = sectionErrors;
 				if (unknownSections.length) result.unknown_sections = unknownSections;
 				return toolJson(result);
 			}),

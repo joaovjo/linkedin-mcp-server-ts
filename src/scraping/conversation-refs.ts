@@ -20,9 +20,7 @@ export async function extractConversationThreadRefs(
 	await browserManager.waitForSelector("main li label[aria-label]", 10000);
 
 	const labels =
-		(await browserManager.evaluate<
-			Array<{ index: number; ariaLabel: string; name: string }>
-		>((filter: string | null) => {
+		(await browserManager.evaluate<Array<{ index: number; ariaLabel: string; name: string }>>((filter: string | null) => {
 			const wanted = (filter || "").replace(/\s+/g, " ").trim().toLowerCase();
 			const nodes = [...document.querySelectorAll("main li label[aria-label]")];
 			const out: Array<{ index: number; ariaLabel: string; name: string }> = [];
@@ -47,15 +45,10 @@ export async function extractConversationThreadRefs(
 		const before = await browserManager.getCurrentUrl();
 
 		const clicked = await browserManager.evaluate<boolean>((idx: number) => {
-			const labels = [
-				...document.querySelectorAll("main li label[aria-label]"),
-			];
+			const labels = [...document.querySelectorAll("main li label[aria-label]")];
 			const label = labels[idx];
 			if (!label) return false;
-			const clickTarget =
-				label.closest("li")?.querySelector('div[class*="listitem__link"]') ||
-				label.closest("li") ||
-				label;
+			const clickTarget = label.closest("li")?.querySelector('div[class*="listitem__link"]') || label.closest("li") || label;
 			(clickTarget as HTMLElement).click();
 			return true;
 		}, row.index);
@@ -95,16 +88,12 @@ export async function readProfileDisplayName(): Promise<string | null> {
 }
 
 /** Resolve thread URLs for a participant display name via inbox (+ search fallback). */
-export async function resolveConversationThreadUrls(
-	displayName: string,
-): Promise<string[]> {
+export async function resolveConversationThreadUrls(displayName: string): Promise<string[]> {
 	await browserManager.navigate("https://www.linkedin.com/messaging/");
 	await Bun.sleep(1500);
 	let refs = await extractConversationThreadRefs(null, "inbox", displayName);
 	if (!refs.length) {
-		await browserManager.navigate(
-			`https://www.linkedin.com/messaging/?searchTerm=${encodeURIComponent(displayName)}`,
-		);
+		await browserManager.navigate(`https://www.linkedin.com/messaging/?searchTerm=${encodeURIComponent(displayName)}`);
 		await Bun.sleep(1500);
 		refs = await extractConversationThreadRefs(null, "search", displayName);
 	}

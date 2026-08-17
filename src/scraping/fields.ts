@@ -20,8 +20,7 @@ export const PERSON_SECTIONS: Record<string, SectionDef> = {
 		url: (u: string) => `https://www.linkedin.com/in/${u}/details/languages/`,
 	},
 	certifications: {
-		url: (u: string) =>
-			`https://www.linkedin.com/in/${u}/details/certifications/`,
+		url: (u: string) => `https://www.linkedin.com/in/${u}/details/certifications/`,
 	},
 	skills: {
 		url: (u: string) => `https://www.linkedin.com/in/${u}/details/skills/`,
@@ -30,8 +29,7 @@ export const PERSON_SECTIONS: Record<string, SectionDef> = {
 		url: (u: string) => `https://www.linkedin.com/in/${u}/details/projects/`,
 	},
 	contact_info: {
-		url: (u: string) =>
-			`https://www.linkedin.com/in/${u}/overlay/contact-info/`,
+		url: (u: string) => `https://www.linkedin.com/in/${u}/overlay/contact-info/`,
 	},
 	posts: {
 		url: (u: string) => `https://www.linkedin.com/in/${u}/recent-activity/all/`,

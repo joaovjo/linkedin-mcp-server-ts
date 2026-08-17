@@ -8,19 +8,10 @@ import {
 	originValidationResponse,
 } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import {
-	performImportFromBrowser,
-	performLogin,
-	performLogout,
-	performStatus,
-} from "./browser/auth.ts";
+import { performImportFromBrowser, performLogin, performLogout, performStatus } from "./browser/auth.ts";
 import { browserManager } from "./browser/manager.ts";
 import { loadConfig } from "./config.ts";
-import {
-	createMcpServer,
-	SERVER_NAME,
-	SERVER_VERSION,
-} from "./mcp/create-server.ts";
+import { createMcpServer, SERVER_NAME, SERVER_VERSION } from "./mcp/create-server.ts";
 import { ensureSessionDirs } from "./session/store.ts";
 
 const config = loadConfig();
@@ -90,9 +81,7 @@ if (config.transport === "stdio") {
 		responseMode: "json",
 	});
 
-	const httpPath = config.httpPath.endsWith("/")
-		? config.httpPath.slice(0, -1)
-		: config.httpPath;
+	const httpPath = config.httpPath.endsWith("/") ? config.httpPath.slice(0, -1) : config.httpPath;
 
 	const server = Bun.serve({
 		hostname: config.host,
@@ -105,15 +94,9 @@ if (config.transport === "stdio") {
 			}
 
 			if (url.pathname === httpPath || url.pathname === `${httpPath}/`) {
-				const hostErr = hostHeaderValidationResponse(
-					req,
-					localhostAllowedHostnames(),
-				);
+				const hostErr = hostHeaderValidationResponse(req, localhostAllowedHostnames());
 				if (hostErr) return hostErr;
-				const originErr = originValidationResponse(
-					req,
-					localhostAllowedOrigins(),
-				);
+				const originErr = originValidationResponse(req, localhostAllowedOrigins());
 				if (originErr) return originErr;
 				return mcpHandler.fetch(req);
 			}
@@ -122,9 +105,7 @@ if (config.transport === "stdio") {
 		},
 	});
 
-	console.error(
-		`  Server listening on http://${config.host}:${server.port}${httpPath}`,
-	);
+	console.error(`  Server listening on http://${config.host}:${server.port}${httpPath}`);
 
 	const shutdown = async () => {
 		console.error("\nShutting down...");

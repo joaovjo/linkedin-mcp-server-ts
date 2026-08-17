@@ -3,24 +3,10 @@ import { z } from "zod";
 import { browserManager } from "../browser/manager.ts";
 import type { AppConfig } from "../config.ts";
 import { extractRootContent } from "../scraping/dom-extract.ts";
-import {
-	extractJobIds,
-	getCurrentUrl,
-	scrollJobSidebar,
-	stripLinkedinNoise,
-} from "../scraping/extractor.ts";
+import { extractJobIds, getCurrentUrl, scrollJobSidebar, stripLinkedinNoise } from "../scraping/extractor.ts";
 import { LINKEDIN_BASE } from "../scraping/fields.ts";
-import {
-	buildReferences,
-	dedupeReferences,
-	type Reference,
-} from "../scraping/references.ts";
-import {
-	applySectionText,
-	isRateLimitedText,
-	normalizeCsv,
-	type SectionErrorInfo,
-} from "../scraping/section-result.ts";
+import { buildReferences, dedupeReferences, type Reference } from "../scraping/references.ts";
+import { applySectionText, isRateLimitedText, normalizeCsv, type SectionErrorInfo } from "../scraping/section-result.ts";
 import { toolJson, wrapTool } from "./helpers.ts";
 
 const DATE_POSTED_MAP: Record<string, string> = {
@@ -83,12 +69,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 				const raw = await extractRootContent(browserManager);
 				const sections: Record<string, string> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
-				applySectionText(
-					sections,
-					sectionErrors,
-					"job_posting",
-					stripLinkedinNoise(raw.text),
-				);
+				applySectionText(sections, sectionErrors, "job_posting", stripLinkedinNoise(raw.text));
 				const refs = buildReferences(raw.references, "job_posting");
 				const result: Record<string, unknown> = {
 					url: await getCurrentUrl(),
@@ -106,8 +87,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 		"search_jobs",
 		{
 			title: "Search Jobs",
-			description:
-				"Search for jobs on LinkedIn. Returns job_ids that can be passed to get_job_details.",
+			description: "Search for jobs on LinkedIn. Returns job_ids that can be passed to get_job_details.",
 			inputSchema: z.object({
 				keywords: z.string(),
 				location: z.string().optional(),
@@ -136,10 +116,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 					params.set("f_JT", normalizeCsv(args.job_type, JOB_TYPE_MAP));
 				}
 				if (args.experience_level) {
-					params.set(
-						"f_E",
-						normalizeCsv(args.experience_level, EXPERIENCE_LEVEL_MAP),
-					);
+					params.set("f_E", normalizeCsv(args.experience_level, EXPERIENCE_LEVEL_MAP));
 				}
 				if (args.work_type) {
 					params.set("f_WT", normalizeCsv(args.work_type, WORK_TYPE_MAP));
@@ -154,8 +131,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
 
 				for (let pageNum = 0; pageNum < maxPages; pageNum++) {
-					const pageUrl =
-						pageNum === 0 ? baseUrl : `${baseUrl}&start=${pageNum * PAGE_SIZE}`;
+					const pageUrl = pageNum === 0 ? baseUrl : `${baseUrl}&start=${pageNum * PAGE_SIZE}`;
 					await browserManager.navigate(pageUrl);
 					await Bun.sleep(1200);
 					await scrollJobSidebar(5, 500);
@@ -192,9 +168,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 
 				const result: Record<string, unknown> = {
 					url: await getCurrentUrl(),
-					sections: pageTexts.length
-						? { search_results: pageTexts.join("\n\n") }
-						: {},
+					sections: pageTexts.length ? { search_results: pageTexts.join("\n\n") } : {},
 					job_ids: allIds,
 				};
 				if (allRefs.length) {
@@ -213,8 +187,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 		"get_saved_jobs",
 		{
 			title: "Get Saved Jobs",
-			description:
-				"List the authenticated user's saved LinkedIn job postings. Returns job_ids usable with get_job_details.",
+			description: "List the authenticated user's saved LinkedIn job postings. Returns job_ids usable with get_job_details.",
 			inputSchema: z.object({
 				max_pages: z.number().int().min(1).max(10).optional().default(3),
 			}),
@@ -230,10 +203,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 				const sectionErrors: Record<string, SectionErrorInfo> = {};
 
 				for (let pageNum = 0; pageNum < maxPages; pageNum++) {
-					const url =
-						pageNum === 0
-							? SAVED_JOBS_URL
-							: `${SAVED_JOBS_URL}?start=${pageNum * SAVED_JOBS_PAGE_SIZE}`;
+					const url = pageNum === 0 ? SAVED_JOBS_URL : `${SAVED_JOBS_URL}?start=${pageNum * SAVED_JOBS_PAGE_SIZE}`;
 					await browserManager.navigate(url);
 					await Bun.sleep(1200);
 
@@ -274,9 +244,7 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 
 				const result: Record<string, unknown> = {
 					url: SAVED_JOBS_URL,
-					sections: pageTexts.length
-						? { saved_jobs: pageTexts.join("\n---\n") }
-						: {},
+					sections: pageTexts.length ? { saved_jobs: pageTexts.join("\n---\n") } : {},
 					job_ids: allIds,
 				};
 				if (pageReferences.length) {

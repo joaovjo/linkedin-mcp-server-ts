@@ -4,10 +4,7 @@ import { join } from "node:path";
 const WIN_CANDIDATES = [
 	"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
 	"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-	join(
-		process.env.LOCALAPPDATA ?? "",
-		"Google\\Chrome\\Application\\chrome.exe",
-	),
+	join(process.env.LOCALAPPDATA ?? "", "Google\\Chrome\\Application\\chrome.exe"),
 	"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
 	"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
 ];
@@ -60,12 +57,7 @@ export function readDevToolsActivePortWsUrl(
 	userDataRoots: string[] = [
 		join(process.env.LOCALAPPDATA ?? "", "Google", "Chrome", "User Data"),
 		join(process.env.LOCALAPPDATA ?? "", "Microsoft", "Edge", "User Data"),
-		join(
-			process.env.LOCALAPPDATA ?? "",
-			"BraveSoftware",
-			"Brave-Browser",
-			"User Data",
-		),
+		join(process.env.LOCALAPPDATA ?? "", "BraveSoftware", "Brave-Browser", "User Data"),
 	],
 ): string | null {
 	for (const root of userDataRoots) {
@@ -83,10 +75,7 @@ export function readDevToolsActivePortWsUrl(
 	return null;
 }
 
-export async function readDevToolsWsUrl(
-	port: number,
-	timeoutMs = 15_000,
-): Promise<string> {
+export async function readDevToolsWsUrl(port: number, timeoutMs = 15_000): Promise<string> {
 	const fromFile = readDevToolsActivePortWsUrl();
 	if (fromFile?.includes(`:${port}`)) {
 		return fromFile;
@@ -118,9 +107,7 @@ export async function readDevToolsWsUrl(
 	);
 }
 
-export async function resolveExistingChromeWsUrl(
-	debugPort = 9222,
-): Promise<string | null> {
+export async function resolveExistingChromeWsUrl(debugPort = 9222): Promise<string | null> {
 	const active = readDevToolsActivePortWsUrl();
 	if (active) return active;
 	try {
@@ -130,11 +117,7 @@ export async function resolveExistingChromeWsUrl(
 	}
 }
 
-export function spawnChromeForLogin(opts: {
-	chromePath: string;
-	userDataDir: string;
-	debugPort: number;
-}): Bun.Subprocess {
+export function spawnChromeForLogin(opts: { chromePath: string; userDataDir: string; debugPort: number }): Bun.Subprocess {
 	return Bun.spawn(
 		[
 			opts.chromePath,

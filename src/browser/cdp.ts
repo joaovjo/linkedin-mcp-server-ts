@@ -2,11 +2,7 @@ import type { CookieRecord } from "../session/store.ts";
 
 export type CdpView = Bun.WebView;
 
-export async function cdp<T = unknown>(
-	view: CdpView,
-	method: string,
-	params?: Record<string, unknown>,
-): Promise<T> {
+export async function cdp<T = unknown>(view: CdpView, method: string, params?: Record<string, unknown>): Promise<T> {
 	return (await view.cdp(method, params)) as T;
 }
 
@@ -14,19 +10,13 @@ export async function enableNetwork(view: CdpView): Promise<void> {
 	await cdp(view, "Network.enable");
 }
 
-export async function setUserAgent(
-	view: CdpView,
-	userAgent: string,
-): Promise<void> {
+export async function setUserAgent(view: CdpView, userAgent: string): Promise<void> {
 	await cdp(view, "Emulation.setUserAgentOverride", { userAgent });
 }
 
 export async function getAllCookies(view: CdpView): Promise<CookieRecord[]> {
 	await enableNetwork(view);
-	const result = await cdp<{ cookies: Array<Record<string, unknown>> }>(
-		view,
-		"Network.getAllCookies",
-	);
+	const result = await cdp<{ cookies: Array<Record<string, unknown>> }>(view, "Network.getAllCookies");
 	return (result.cookies ?? []).map((c) => ({
 		name: String(c.name ?? ""),
 		value: String(c.value ?? ""),
@@ -39,18 +29,13 @@ export async function getAllCookies(view: CdpView): Promise<CookieRecord[]> {
 	}));
 }
 
-export async function setCookies(
-	view: CdpView,
-	cookies: CookieRecord[],
-): Promise<void> {
+export async function setCookies(view: CdpView, cookies: CookieRecord[]): Promise<void> {
 	await enableNetwork(view);
 	for (const cookie of cookies) {
 		await cdp(view, "Network.setCookie", {
 			name: cookie.name,
 			value: cookie.value,
-			domain: cookie.domain.startsWith(".")
-				? cookie.domain
-				: cookie.domain || ".linkedin.com",
+			domain: cookie.domain.startsWith(".") ? cookie.domain : cookie.domain || ".linkedin.com",
 			path: cookie.path || "/",
 			secure: cookie.secure ?? true,
 			httpOnly: cookie.httpOnly ?? false,
@@ -69,10 +54,7 @@ function mapSameSite(value: unknown): CookieRecord["sameSite"] | undefined {
 	return undefined;
 }
 
-export function listenNetworkResponses(
-	view: CdpView,
-	onResponse: (url: string, status: number) => void,
-): () => void {
+export function listenNetworkResponses(view: CdpView, onResponse: (url: string, status: number) => void): () => void {
 	const listener = (event: Event) => {
 		const data = (
 			event as CustomEvent & {

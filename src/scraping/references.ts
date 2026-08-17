@@ -15,29 +15,18 @@ export {
 } from "./link-metadata";
 
 import { browserManager } from "../browser/manager.ts";
-import {
-	buildReferences,
-	classifyLink,
-	type RawReference,
-	type Reference,
-} from "./link-metadata";
+import { buildReferences, classifyLink, type RawReference, type Reference } from "./link-metadata";
 
 /** Legacy helper — prefer buildReferences. */
-export function extractPersonReferences(
-	raw: Array<{ href: string; text?: string }>,
-): Reference[] {
+export function extractPersonReferences(raw: Array<{ href: string; text?: string }>): Reference[] {
 	const mapped: RawReference[] = raw.map((r) => ({
 		href: r.href,
 		text: r.text,
 	}));
-	return buildReferences(mapped, "search_results").filter(
-		(r) => r.kind === "person",
-	);
+	return buildReferences(mapped, "search_results").filter((r) => r.kind === "person");
 }
 
-export function extractJobReferences(
-	raw: Array<{ href: string; text?: string }>,
-): Reference[] {
+export function extractJobReferences(raw: Array<{ href: string; text?: string }>): Reference[] {
 	const mapped: RawReference[] = raw.map((r) => ({
 		href: r.href,
 		text: r.text,
@@ -66,24 +55,20 @@ export function hrefToFeedPostUrl(href: string): string | null {
 }
 
 /** Collect person profile links currently in the DOM. */
-export async function extractProfileReferences(
-	limit = 40,
-): Promise<Reference[]> {
+export async function extractProfileReferences(limit = 40): Promise<Reference[]> {
 	const hrefs =
-		(await browserManager.evaluate<Array<{ href: string; text: string }>>(
-			() => {
-				const out: Array<{ href: string; text: string }> = [];
-				for (const a of document.querySelectorAll('a[href*="/in/"]')) {
-					const href = (a as HTMLAnchorElement).href;
-					if (!/\/in\/[^/?#]+\/?/.test(href)) continue;
-					out.push({
-						href,
-						text: (a.textContent || "").trim().slice(0, 120),
-					});
-				}
-				return out;
-			},
-		)) ?? [];
+		(await browserManager.evaluate<Array<{ href: string; text: string }>>(() => {
+			const out: Array<{ href: string; text: string }> = [];
+			for (const a of document.querySelectorAll('a[href*="/in/"]')) {
+				const href = (a as HTMLAnchorElement).href;
+				if (!/\/in\/[^/?#]+\/?/.test(href)) continue;
+				out.push({
+					href,
+					text: (a.textContent || "").trim().slice(0, 120),
+				});
+			}
+			return out;
+		})) ?? [];
 	return buildReferences(
 		hrefs.map((h) => ({ href: h.href, text: h.text })),
 		"employees",
@@ -93,28 +78,19 @@ export async function extractProfileReferences(
 }
 
 /** Sidebar recommendation sections — fixed headings (Python parity). */
-export async function extractSidebarProfiles(): Promise<
-	Record<string, string[]>
-> {
+export async function extractSidebarProfiles(): Promise<Record<string, string[]>> {
 	const data = await browserManager.evaluate<{
 		sections: Record<string, string[]>;
 		showAllUrls: Record<string, string>;
 	}>(() => {
-		const HEADINGS = [
-			"People you may know",
-			"More profiles for you",
-			"Explore premium profiles",
-		];
+		const HEADINGS = ["People you may know", "More profiles for you", "Explore premium profiles"];
 		const result: Record<string, string[]> = {};
 		const showAllUrls: Record<string, string> = {};
 		const main = document.querySelector("main") || document.body;
 		const headings = [...main.querySelectorAll("h2, h3")];
 
 		for (const wanted of HEADINGS) {
-			const h = headings.find(
-				(el) =>
-					(el.textContent || "").trim().toLowerCase() === wanted.toLowerCase(),
-			);
+			const h = headings.find((el) => (el.textContent || "").trim().toLowerCase() === wanted.toLowerCase());
 			if (!h) continue;
 			let section: Element | null = h.closest("section, aside, div");
 			if (!section) section = h.parentElement;
@@ -136,9 +112,9 @@ export async function extractSidebarProfiles(): Promise<
 						/* skip */
 					}
 				}
-				const showAll = [...section.querySelectorAll("a")].find((a) =>
-					/^Show all\b/i.test((a.textContent || "").trim()),
-				) as HTMLAnchorElement | undefined;
+				const showAll = [...section.querySelectorAll("a")].find((a) => /^Show all\b/i.test((a.textContent || "").trim())) as
+					| HTMLAnchorElement
+					| undefined;
 				if (showAll?.href) {
 					const key = wanted
 						.toLowerCase()

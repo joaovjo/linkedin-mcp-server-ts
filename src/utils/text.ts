@@ -12,15 +12,7 @@ const NOISE_LINES: RegExp[] = [
 	/^(?:Loaded:.*|Remaining time.*|Stream Type.*)$/,
 ];
 
-const UI_ELEMENT_PATTERNS = [
-	/^Show more$/m,
-	/^Show less$/m,
-	/^See all$/m,
-	/^View all$/m,
-	/^Load more$/m,
-	/^\.\.\.$/m,
-	/^…$/m,
-];
+const UI_ELEMENT_PATTERNS = [/^Show more$/m, /^Show less$/m, /^See all$/m, /^View all$/m, /^Load more$/m, /^\.\.\.$/m, /^…$/m];
 
 const WHITESPACE_PATTERNS = [/\n{3,}/g, /[ \t]{2,}/g, /\r/g];
 
@@ -46,9 +38,7 @@ export function stripLinkedinNoise(text: string): string {
 	}
 
 	for (const pattern of WHITESPACE_PATTERNS) {
-		cleaned = cleaned.replace(pattern, (m) =>
-			m.includes("\n") ? "\n\n" : " ",
-		);
+		cleaned = cleaned.replace(pattern, (m) => (m.includes("\n") ? "\n\n" : " "));
 	}
 
 	return cleaned.trim();
@@ -85,8 +75,7 @@ export function extractEmails(text: string): string[] {
 }
 
 export function extractPhoneNumbers(text: string): string[] {
-	const phoneRegex =
-		/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+	const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
 	const matches = text.match(phoneRegex);
 	return matches ? [...new Set(matches)] : [];
 }

@@ -6,10 +6,7 @@ import { raiseToolError } from "../errors/handler.ts";
 import { serializationQueue } from "../middleware/serialization.ts";
 import { toolJson } from "./helpers.ts";
 
-export function registerSessionTools(
-	server: McpServer,
-	_config: AppConfig,
-): void {
+export function registerSessionTools(server: McpServer, _config: AppConfig): void {
 	server.registerTool(
 		"close_session",
 		{
@@ -24,8 +21,7 @@ export function registerSessionTools(
 					await browserManager.close();
 					return toolJson({
 						status: "success",
-						message:
-							"Successfully closed the browser session and cleaned up resources",
+						message: "Successfully closed the browser session and cleaned up resources",
 					});
 				} catch (err) {
 					return raiseToolError(err);

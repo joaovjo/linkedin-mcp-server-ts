@@ -36,18 +36,14 @@ export class CredentialsNotFoundError extends LinkedInMCPError {
 
 export class AuthenticationInProgressError extends LinkedInMCPError {
 	constructor() {
-		super(
-			"Authentication in progress. Complete LinkedIn login in the browser, then retry this tool in ~30 seconds.",
-		);
+		super("Authentication in progress. Complete LinkedIn login in the browser, then retry this tool in ~30 seconds.");
 		this.name = "AuthenticationInProgressError";
 	}
 }
 
 export class AuthenticationStartedError extends LinkedInMCPError {
 	constructor() {
-		super(
-			"Authentication started. Complete LinkedIn login in the browser, then retry.",
-		);
+		super("Authentication started. Complete LinkedIn login in the browser, then retry.");
 		this.name = "AuthenticationStartedError";
 	}
 }

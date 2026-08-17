@@ -1,21 +1,7 @@
 import type { AppConfig } from "../config.ts";
-import {
-	AuthenticationInProgressError,
-	CredentialsNotFoundError,
-} from "../errors/types.ts";
-import {
-	clearSession,
-	readCookies,
-	sessionLooksReady,
-	writeCookies,
-	writeSourceState,
-} from "../session/store.ts";
-import {
-	findChromeExecutable,
-	readDevToolsWsUrl,
-	resolveExistingChromeWsUrl,
-	spawnChromeForLogin,
-} from "./chrome-launch.ts";
+import { AuthenticationInProgressError, CredentialsNotFoundError } from "../errors/types.ts";
+import { clearSession, readCookies, sessionLooksReady, writeCookies, writeSourceState } from "../session/store.ts";
+import { findChromeExecutable, readDevToolsWsUrl, resolveExistingChromeWsUrl, spawnChromeForLogin } from "./chrome-launch.ts";
 import { browserManager } from "./manager.ts";
 
 const LINKEDIN_URL = "https://www.linkedin.com";
@@ -23,15 +9,9 @@ const LINKEDIN_URL = "https://www.linkedin.com";
 async function persistSession(config: AppConfig): Promise<void> {
 	const cookies = await browserManager.exportCookies();
 	const linkedInCookies = cookies.filter(
-		(c) =>
-			c.domain.includes("linkedin.com") ||
-			c.name === "li_at" ||
-			c.name === "JSESSIONID",
+		(c) => c.domain.includes("linkedin.com") || c.name === "li_at" || c.name === "JSESSIONID",
 	);
-	await writeCookies(
-		config.userDataDir,
-		linkedInCookies.length ? linkedInCookies : cookies,
-	);
+	await writeCookies(config.userDataDir, linkedInCookies.length ? linkedInCookies : cookies);
 	await writeSourceState(config.userDataDir, {
 		runtime_id: crypto.randomUUID(),
 		login_generation: Date.now(),
@@ -55,9 +35,7 @@ export async function ensureAuthenticated(config: AppConfig): Promise<void> {
 	}
 
 	if (config.loginInlineWait > 0) {
-		console.error(
-			`No session found. Waiting up to ${config.loginInlineWait}s for login…`,
-		);
+		console.error(`No session found. Waiting up to ${config.loginInlineWait}s for login…`);
 		const ok = await waitForLogin(config.loginInlineWait * 1000);
 		if (ok) return;
 		throw new AuthenticationInProgressError();
@@ -72,13 +50,7 @@ export async function checkLogin(): Promise<boolean> {
 		await Bun.sleep(1200);
 
 		const href = await browserManager.evaluate<string>("window.location.href");
-		const blockerPatterns = [
-			"/login",
-			"/authwall",
-			"/checkpoint",
-			"/challenge",
-			"/signup",
-		];
+		const blockerPatterns = ["/login", "/authwall", "/checkpoint", "/challenge", "/signup"];
 		if (blockerPatterns.some((p) => href.includes(p))) return false;
 
 		const hasNav = await browserManager.evaluate<boolean>(
@@ -112,9 +84,7 @@ async function waitForLogin(timeoutMs: number): Promise<boolean> {
 	return false;
 }
 
-export async function attachToExistingChrome(
-	config: AppConfig,
-): Promise<boolean> {
+export async function attachToExistingChrome(config: AppConfig): Promise<boolean> {
 	const wsUrl = await resolveExistingChromeWsUrl(config.debugPort);
 	if (!wsUrl) return false;
 	console.error(`Attaching to existing Chrome DevTools: ${wsUrl}`);
@@ -135,13 +105,8 @@ export async function performLogin(config: AppConfig): Promise<void> {
 			await browserManager.close();
 			return;
 		}
-		console.error(
-			"Attached but not logged in yet — waiting for LinkedIn login in that Chrome…",
-		);
-		const timeoutMs =
-			config.loginTimeout === 0
-				? Number.POSITIVE_INFINITY
-				: config.loginTimeout * 1000;
+		console.error("Attached but not logged in yet — waiting for LinkedIn login in that Chrome…");
+		const timeoutMs = config.loginTimeout === 0 ? Number.POSITIVE_INFINITY : config.loginTimeout * 1000;
 		const start = Date.now();
 		while (Date.now() - start < timeoutMs) {
 			if (await checkLogin()) {
@@ -180,17 +145,12 @@ export async function performLogin(config: AppConfig): Promise<void> {
 		await browserManager.close();
 		await browserManager.initialize(config, { attachWsUrl: wsUrl });
 
-		const timeoutMs =
-			config.loginTimeout === 0
-				? Number.POSITIVE_INFINITY
-				: config.loginTimeout * 1000;
+		const timeoutMs = config.loginTimeout === 0 ? Number.POSITIVE_INFINITY : config.loginTimeout * 1000;
 		const start = Date.now();
 		while (Date.now() - start < timeoutMs) {
 			if (await checkLogin()) {
 				await persistSession(config);
-				console.error(
-					"✓ LinkedIn session saved (cookies.json + source-state.json).",
-				);
+				console.error("✓ LinkedIn session saved (cookies.json + source-state.json).");
 				return;
 			}
 			await Bun.sleep(1500);
@@ -209,9 +169,7 @@ export async function performLogin(config: AppConfig): Promise<void> {
 export async function performLogout(config: AppConfig): Promise<void> {
 	await clearSession(config.userDataDir);
 	await browserManager.close();
-	console.error(
-		"✓ Session cleared (cookies.json / source-state.json removed).",
-	);
+	console.error("✓ Session cleared (cookies.json / source-state.json removed).");
 }
 
 export async function performStatus(config: AppConfig): Promise<number> {
@@ -239,18 +197,13 @@ export async function performStatus(config: AppConfig): Promise<number> {
 		await browserManager.close();
 		return 1;
 	} catch (err) {
-		console.error(
-			"status: error —",
-			err instanceof Error ? err.message : String(err),
-		);
+		console.error("status: error —", err instanceof Error ? err.message : String(err));
 		await browserManager.close();
 		return 1;
 	}
 }
 
-export async function performImportFromBrowser(
-	config: AppConfig,
-): Promise<void> {
+export async function performImportFromBrowser(config: AppConfig): Promise<void> {
 	const attached = await attachToExistingChrome(config);
 	if (attached && (await checkLogin())) {
 		await persistSession(config);
@@ -261,9 +214,7 @@ export async function performImportFromBrowser(
 
 	const cookies = await readCookies(config.userDataDir);
 	if (!cookies?.length) {
-		throw new Error(
-			"No cookies.json and could not attach to Chrome DevTools. Enable remote debugging or run --login.",
-		);
+		throw new Error("No cookies.json and could not attach to Chrome DevTools. Enable remote debugging or run --login.");
 	}
 	await browserManager.initialize(config, { injectCookies: cookies });
 	const ok = await checkLogin();

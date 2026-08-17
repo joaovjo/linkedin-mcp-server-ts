@@ -1,15 +1,10 @@
 import { browserManager } from "../browser/manager.ts";
-import {
-	extractCompanyUrnFromDom,
-	extractProfileUrn,
-	extractRootContent,
-} from "./dom-extract.ts";
+import { extractCompanyUrnFromDom, extractProfileUrn, extractRootContent } from "./dom-extract.ts";
 import { LINKEDIN_BASE, type SectionDef } from "./fields.ts";
 import { buildReferences, type Reference } from "./link-metadata.ts";
 
 const NAV_DELAY = 2_000;
-const RATE_LIMITED_MSG =
-	"[Rate limited] LinkedIn blocked this section. Try again later or request fewer sections.";
+const RATE_LIMITED_MSG = "[Rate limited] LinkedIn blocked this section. Try again later or request fewer sections.";
 
 export interface SectionExtractResult {
 	text: string;
@@ -32,10 +27,7 @@ export async function extractSection(
 	maxScrolls?: number,
 ): Promise<SectionExtractResult> {
 	try {
-		const url =
-			typeof sectionDef.url === "function"
-				? sectionDef.url(username)
-				: sectionDef.url;
+		const url = typeof sectionDef.url === "function" ? sectionDef.url(username) : sectionDef.url;
 
 		await browserManager.navigate(url);
 		await delay(NAV_DELAY);
@@ -81,9 +73,7 @@ export async function extractSection(
 	}
 }
 
-export async function extractPersonProfile(
-	username: string,
-): Promise<SectionExtractResult> {
+export async function extractPersonProfile(username: string): Promise<SectionExtractResult> {
 	const url = `${LINKEDIN_BASE}/in/${username}/`;
 	await browserManager.navigate(url);
 	await delay(1000);
@@ -99,9 +89,7 @@ export async function extractPersonProfile(
 	};
 }
 
-export async function extractCompanyProfile(
-	companyName: string,
-): Promise<SectionExtractResult & { company_urn?: string }> {
+export async function extractCompanyProfile(companyName: string): Promise<SectionExtractResult & { company_urn?: string }> {
 	const url = `${LINKEDIN_BASE}/company/${companyName}/about/`;
 	await browserManager.navigate(url);
 	await delay(1000);
@@ -147,13 +135,7 @@ export async function checkLoginState(): Promise<boolean> {
 	if (isLoggedIn) return true;
 
 	const currentUrl = await browserManager.getCurrentUrl();
-	const blockerPatterns = [
-		"/login",
-		"/authwall",
-		"/checkpoint",
-		"/challenge",
-		"/signup",
-	];
+	const blockerPatterns = ["/login", "/authwall", "/checkpoint", "/challenge", "/signup"];
 	return !blockerPatterns.some((p) => currentUrl.includes(p));
 }
 
@@ -170,17 +152,14 @@ export async function clickShowMore(maxClicks: number): Promise<number> {
 	let clicked = 0;
 	for (let i = 0; i < maxClicks; i++) {
 		const didClick = await browserManager.evaluate<boolean>(() => {
-			const buttons = [
-				...document.querySelectorAll("main button"),
-			] as HTMLButtonElement[];
+			const buttons = [...document.querySelectorAll("main button")] as HTMLButtonElement[];
 			const target = buttons.find((btn) => {
 				const t = (btn.innerText || btn.textContent || "").trim();
 				return /^Show (more|all)\b/i.test(t);
 			});
 			if (!target) return false;
 			const style = window.getComputedStyle(target);
-			if (style.display === "none" || style.visibility === "hidden")
-				return false;
+			if (style.display === "none" || style.visibility === "hidden") return false;
 			target.scrollIntoView({ block: "center" });
 			target.click();
 			return true;
@@ -193,11 +172,7 @@ export async function clickShowMore(maxClicks: number): Promise<number> {
 }
 
 /** Scroll the largest scrollable region inside main. */
-export async function scrollMainScrollable(
-	position: "top" | "bottom",
-	attempts: number,
-	pauseMs = 500,
-): Promise<void> {
+export async function scrollMainScrollable(position: "top" | "bottom", attempts: number, pauseMs = 500): Promise<void> {
 	for (let i = 0; i < attempts; i++) {
 		await browserManager.evaluate((pos: string) => {
 			const main = document.querySelector("main");
@@ -207,17 +182,12 @@ export async function scrollMainScrollable(
 				const style = window.getComputedStyle(element);
 				return (
 					(style.overflowY === "auto" || style.overflowY === "scroll") &&
-					(element as HTMLElement).scrollHeight >
-						(element as HTMLElement).clientHeight + 20
+					(element as HTMLElement).scrollHeight > (element as HTMLElement).clientHeight + 20
 				);
 			};
 
-			const candidates = [main, ...main.querySelectorAll("*")].filter(
-				isScrollable,
-			) as HTMLElement[];
-			const target =
-				candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ||
-				(main as HTMLElement);
+			const candidates = [main, ...main.querySelectorAll("*")].filter(isScrollable) as HTMLElement[];
+			const target = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] || (main as HTMLElement);
 			target.scrollTop = pos === "top" ? 0 : target.scrollHeight;
 			return true;
 		}, position);
@@ -225,10 +195,7 @@ export async function scrollMainScrollable(
 	}
 }
 
-export async function scrollToBottom(
-	maxScrolls: number,
-	pauseMs = 500,
-): Promise<void> {
+export async function scrollToBottom(maxScrolls: number, pauseMs = 500): Promise<void> {
 	for (let i = 0; i < maxScrolls; i++) {
 		await scrollMainScrollable("bottom", 1, 0);
 		await browserManager.scroll(0, 1400);
@@ -236,10 +203,7 @@ export async function scrollToBottom(
 	}
 }
 
-export async function scrollJobSidebar(
-	maxScrolls = 5,
-	pauseMs = 500,
-): Promise<void> {
+export async function scrollJobSidebar(maxScrolls = 5, pauseMs = 500): Promise<void> {
 	for (let i = 0; i < maxScrolls; i++) {
 		await browserManager.evaluate(() => {
 			const selectors = [
@@ -260,18 +224,14 @@ export async function scrollJobSidebar(
 			if (!target) {
 				const main = document.querySelector("main");
 				if (!main) return false;
-				const candidates = [main, ...main.querySelectorAll("*")].filter(
-					(el) => {
-						const style = window.getComputedStyle(el);
-						return (
-							(style.overflowY === "auto" || style.overflowY === "scroll") &&
-							(el as HTMLElement).scrollHeight >
-								(el as HTMLElement).clientHeight + 20
-						);
-					},
-				) as HTMLElement[];
-				target =
-					candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ?? null;
+				const candidates = [main, ...main.querySelectorAll("*")].filter((el) => {
+					const style = window.getComputedStyle(el);
+					return (
+						(style.overflowY === "auto" || style.overflowY === "scroll") &&
+						(el as HTMLElement).scrollHeight > (el as HTMLElement).clientHeight + 20
+					);
+				}) as HTMLElement[];
+				target = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ?? null;
 			}
 			if (!target) {
 				window.scrollBy(0, 1200);
@@ -291,9 +251,7 @@ export async function extractJobIds(): Promise<string[]> {
 			const seen = new Set<string>();
 			const ids: string[] = [];
 			for (const a of links) {
-				const match = (a as HTMLAnchorElement).href.match(
-					/\/jobs\/view\/(\d+)/,
-				);
+				const match = (a as HTMLAnchorElement).href.match(/\/jobs\/view\/(\d+)/);
 				if (match?.[1] && !seen.has(match[1])) {
 					seen.add(match[1]);
 					ids.push(match[1]);
@@ -310,11 +268,7 @@ function delay(ms: number): Promise<void> {
 
 function isRateLimited(text: string): boolean {
 	const lower = text.toLowerCase();
-	return (
-		lower.includes("rate limited") ||
-		lower.includes("too many requests") ||
-		lower.includes("try again later")
-	);
+	return lower.includes("rate limited") || lower.includes("too many requests") || lower.includes("try again later");
 }
 
 const NOISE_PATTERNS: RegExp[] = [

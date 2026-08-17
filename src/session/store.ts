@@ -41,9 +41,7 @@ export async function ensureSessionDirs(userDataDir: string): Promise<void> {
 	await mkdir(rootDir(userDataDir), { recursive: true });
 }
 
-export async function readCookies(
-	userDataDir: string,
-): Promise<CookieRecord[] | null> {
+export async function readCookies(userDataDir: string): Promise<CookieRecord[] | null> {
 	const path = cookiesPath(userDataDir);
 	const file = Bun.file(path);
 	if (!(await file.exists())) return null;
@@ -59,17 +57,12 @@ export async function readCookies(
 	}
 }
 
-export async function writeCookies(
-	userDataDir: string,
-	cookies: CookieRecord[],
-): Promise<void> {
+export async function writeCookies(userDataDir: string, cookies: CookieRecord[]): Promise<void> {
 	await ensureSessionDirs(userDataDir);
 	await Bun.write(cookiesPath(userDataDir), JSON.stringify(cookies, null, 2));
 }
 
-export async function readSourceState(
-	userDataDir: string,
-): Promise<SourceState | null> {
+export async function readSourceState(userDataDir: string): Promise<SourceState | null> {
 	const path = sourceStatePath(userDataDir);
 	const file = Bun.file(path);
 	if (!(await file.exists())) return null;
@@ -80,10 +73,7 @@ export async function readSourceState(
 	}
 }
 
-export async function writeSourceState(
-	userDataDir: string,
-	state: SourceState,
-): Promise<void> {
+export async function writeSourceState(userDataDir: string, state: SourceState): Promise<void> {
 	await ensureSessionDirs(userDataDir);
 	await Bun.write(sourceStatePath(userDataDir), JSON.stringify(state, null, 2));
 }
@@ -107,8 +97,6 @@ export async function sessionLooksReady(userDataDir: string): Promise<boolean> {
 }
 
 export function cookiesToHeader(cookies: CookieRecord[]): string {
-	const map = new Bun.CookieMap(
-		cookies.map((c) => [c.name, c.value] as [string, string]),
-	);
+	const map = new Bun.CookieMap(cookies.map((c) => [c.name, c.value] as [string, string]));
 	return [...map.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 }

@@ -4,38 +4,20 @@ import { cdp, enableNetwork, listenNetworkResponses } from "../browser/cdp.ts";
 import { browserManager } from "../browser/manager.ts";
 import type { AppConfig } from "../config.ts";
 import { extractRootContent } from "../scraping/dom-extract.ts";
-import {
-	getCurrentUrl,
-	getMainInnerText,
-	scrollFeed,
-	stripLinkedinNoise,
-} from "../scraping/extractor.ts";
+import { getCurrentUrl, getMainInnerText, scrollFeed, stripLinkedinNoise } from "../scraping/extractor.ts";
 import { LINKEDIN_BASE } from "../scraping/fields.ts";
 import { buildFeedReferences, classifyLink } from "../scraping/references.ts";
-import {
-	applySectionText,
-	isRateLimitedText,
-	type SectionErrorInfo,
-} from "../scraping/section-result.ts";
+import { applySectionText, isRateLimitedText, type SectionErrorInfo } from "../scraping/section-result.ts";
 import { toolJson, wrapTool } from "./helpers.ts";
 
 function toRelativeFeedUrl(url: string): string | null {
-	const classified = classifyLink(
-		url.startsWith("http") || url.startsWith("/")
-			? url
-			: `https://www.linkedin.com/${url}`,
-	);
+	const classified = classifyLink(url.startsWith("http") || url.startsWith("/") ? url : `https://www.linkedin.com/${url}`);
 	return classified?.[0] === "feed_post" ? classified[1] : null;
 }
 
 function extractFeedUrlsFromBody(body: string): string[] {
 	const found = new Set<string>();
-	const patterns = [
-		/\/feed\/update\/[^"'\\\s]+/g,
-		/\/posts\/[^"'\\\s]+/g,
-		/urn:li:activity:(\d+)/g,
-		/urn:li:ugcPost:(\d+)/g,
-	];
+	const patterns = [/\/feed\/update\/[^"'\\\s]+/g, /\/posts\/[^"'\\\s]+/g, /urn:li:activity:(\d+)/g, /urn:li:ugcPost:(\d+)/g];
 	for (const re of patterns) {
 		for (const m of body.matchAll(re)) {
 			if (m[0].startsWith("/")) {
@@ -83,11 +65,7 @@ export function registerFeedTools(server: McpServer, config: AppConfig): void {
 					).data;
 					if (data?.requestId && data.response?.url) {
 						const u = data.response.url;
-						if (
-							u.includes("voyagerFeed") ||
-							u.includes("/feed/") ||
-							u.includes("graphql")
-						) {
+						if (u.includes("voyagerFeed") || u.includes("/feed/") || u.includes("graphql")) {
 							responseIds.push(data.requestId);
 						}
 					}
@@ -118,9 +96,7 @@ export function registerFeedTools(server: McpServer, config: AppConfig): void {
 								body?: string;
 								base64Encoded?: boolean;
 							}>(view, "Network.getResponseBody", { requestId });
-							const text = body?.base64Encoded
-								? Buffer.from(body.body ?? "", "base64").toString("utf8")
-								: (body?.body ?? "");
+							const text = body?.base64Encoded ? Buffer.from(body.body ?? "", "base64").toString("utf8") : (body?.body ?? "");
 							for (const u of extractFeedUrlsFromBody(text)) {
 								networkExtras.add(u);
 							}
@@ -130,17 +106,13 @@ export function registerFeedTools(server: McpServer, config: AppConfig): void {
 					}
 
 					const raw = await extractRootContent(browserManager);
-					const cleaned =
-						stripLinkedinNoise(raw.text) || (await getMainInnerText());
+					const cleaned = stripLinkedinNoise(raw.text) || (await getMainInnerText());
 					const sections: Record<string, string> = {};
 					const sectionErrors: Record<string, SectionErrorInfo> = {};
 					applySectionText(sections, sectionErrors, "feed", cleaned);
 
 					const refs = !isRateLimitedText(cleaned)
-						? buildFeedReferences(raw.references, [...networkExtras]).slice(
-								0,
-								numPosts,
-							)
+						? buildFeedReferences(raw.references, [...networkExtras]).slice(0, numPosts)
 						: [];
 
 					const result: Record<string, unknown> = {

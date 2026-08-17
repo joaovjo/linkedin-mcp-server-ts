@@ -2,13 +2,7 @@ import type { AppConfig } from "../config.ts";
 import { BrowserSetupFailedError } from "../errors/types.ts";
 import type { CookieRecord } from "../session/store.ts";
 import { ensureSessionDirs, webViewProfilePath } from "../session/store.ts";
-import {
-	type CdpView,
-	enableNetwork,
-	getAllCookies,
-	setCookies,
-	setUserAgent,
-} from "./cdp.ts";
+import { type CdpView, enableNetwork, getAllCookies, setCookies, setUserAgent } from "./cdp.ts";
 import type { BrowserState } from "./types.ts";
 
 type Modifier = "Shift" | "Control" | "Alt" | "Meta";
@@ -36,10 +30,7 @@ class BrowserManager {
 		return this.state === "ready" && this.view !== null;
 	}
 
-	async initialize(
-		config: AppConfig,
-		options: BrowserInitOptions = {},
-	): Promise<void> {
+	async initialize(config: AppConfig, options: BrowserInitOptions = {}): Promise<void> {
 		if (this.initPromise && !options.attachWsUrl) return this.initPromise;
 
 		this.state = "booting";
@@ -67,9 +58,7 @@ class BrowserManager {
 					viewOptions.dataStore = { directory: profilePath };
 				}
 
-				this.view = new Bun.WebView(
-					viewOptions as ConstructorParameters<typeof Bun.WebView>[0],
-				);
+				this.view = new Bun.WebView(viewOptions as ConstructorParameters<typeof Bun.WebView>[0]);
 				await this.view.navigate("about:blank");
 				this.networkEnabled = false;
 
@@ -85,9 +74,7 @@ class BrowserManager {
 				this.state = "failed";
 				this.initPromise = null;
 				this.view = null;
-				throw new BrowserSetupFailedError(
-					err instanceof Error ? err.message : String(err),
-				);
+				throw new BrowserSetupFailedError(err instanceof Error ? err.message : String(err));
 			}
 		})();
 
@@ -163,10 +150,7 @@ class BrowserManager {
 	): Promise<T> {
 		const view = this.getView();
 		if (typeof script === "function") {
-			return (await (view.evaluate as (...a: any[]) => Promise<T>)(
-				script,
-				...args,
-			)) as T;
+			return (await (view.evaluate as (...a: any[]) => Promise<T>)(script, ...args)) as T;
 		}
 		return (await view.evaluate(script)) as T;
 	}
@@ -179,10 +163,7 @@ class BrowserManager {
 		await this.getView().type(text);
 	}
 
-	async press(
-		key: string,
-		options?: { modifiers?: Modifier[] },
-	): Promise<void> {
+	async press(key: string, options?: { modifiers?: Modifier[] }): Promise<void> {
 		await this.getView().press(key, options as never);
 	}
 
@@ -204,9 +185,7 @@ class BrowserManager {
 		const escaped = escapeSelector(selector);
 		const deadline = Date.now() + timeout;
 		while (Date.now() < deadline) {
-			const found = await this.evaluate<boolean>(
-				`!!document.querySelector('${escaped}')`,
-			);
+			const found = await this.evaluate<boolean>(`!!document.querySelector('${escaped}')`);
 			if (found) return true;
 			await Bun.sleep(200);
 		}
@@ -239,10 +218,7 @@ class BrowserManager {
 	}
 
 	async getCurrentUrl(): Promise<string> {
-		return (
-			this.getView().url ||
-			(await this.evaluate<string>("window.location.href"))
-		);
+		return this.getView().url || (await this.evaluate<string>("window.location.href"));
 	}
 
 	async getAllTexts(selector: string): Promise<string[]> {
@@ -253,14 +229,10 @@ class BrowserManager {
 	}
 
 	async scrollToEnd(currentCount: number): Promise<number> {
-		const before = await this.evaluate<number>(
-			"document.body.scrollHeight || 0",
-		);
+		const before = await this.evaluate<number>("document.body.scrollHeight || 0");
 		await this.scroll(0, before);
 		await Bun.sleep(1000);
-		const after = await this.evaluate<number>(
-			"document.body.scrollHeight || 0",
-		);
+		const after = await this.evaluate<number>("document.body.scrollHeight || 0");
 		return after > before ? after : currentCount;
 	}
 }
