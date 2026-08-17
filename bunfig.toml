@@ -10,6 +10,9 @@ access = "public"
 root = "."
 
 # Coverage configuration
+coverage = true
+coverageReporter = ["text", "lcov"]
+
 coverageSkipTestFiles = true
 coveragePathIgnorePatterns = [
   "tests/**",
