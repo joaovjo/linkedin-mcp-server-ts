@@ -149,7 +149,9 @@ class BrowserManager {
 	): Promise<T> {
 		const view = this.getView();
 		if (typeof script === "function") {
-			return (await (view.evaluate as (...a: unknown[]) => Promise<T>)(script, ...args)) as T;
+			const serializedArgs = args.map((a) => JSON.stringify(a)).join(",");
+			const expr = `(${script.toString()})(${serializedArgs})`;
+			return (await view.evaluate(expr)) as T;
 		}
 		return (await view.evaluate(script)) as T;
 	}
