@@ -1,0 +1,10 @@
+{
+  "name": "linkedin-mcp-bridge-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/background.ts --outdir . --target browser && bun build src/content/person.ts src/content/company.ts src/content/job.ts src/content/messaging.ts src/content/feed.ts --outdir content --target browser && bun build src/popup/popup.ts --outdir popup --target browser",
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

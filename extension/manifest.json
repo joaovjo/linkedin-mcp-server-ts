@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn MCP Bridge",
+  "version": "0.1.0",
+  "description": "Extracts LinkedIn data from your authenticated browser session to feed the LinkedIn MCP server.",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "LinkedIn MCP Bridge"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/*"],
+      "js": [
+        "content/person.js",
+        "content/company.js",
+        "content/job.js",
+        "content/messaging.js",
+        "content/feed.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": ["https://www.linkedin.com/*"],
+  "permissions": ["tabs", "storage", "alarms"]
+}
