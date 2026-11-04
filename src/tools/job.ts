@@ -260,4 +260,209 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 				return toolJson(result);
 			}),
 	);
+
+	server.registerTool(
+		"dismiss_job",
+		{
+			title: "Dismiss Job",
+			description: "Dismiss a job posting from job search results",
+			inputSchema: z.object({
+				job_id: z.string().describe("LinkedIn job ID"),
+			}),
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: true,
+				idempotentHint: true,
+				openWorldHint: true,
+			},
+		},
+		async (args) =>
+			wrapTool(config, async () => {
+				const jobId = normalizeJobId(args.job_id);
+				const jobUrl = `${LINKEDIN_BASE}/jobs/view/${encodeURIComponent(jobId)}/`;
+				await browserManager.navigate(jobUrl);
+				await Bun.sleep(1200);
+
+				const currentUrl = await getCurrentUrl();
+				const info = await browserManager.evaluate<{ title: string; company: string }>(() => {
+					const title =
+						document.querySelector(
+							"h1, .job-details-jobs-unified-top-card__job-title, .top-card-layout__title",
+						)?.textContent?.trim() || "";
+					const company =
+						document.querySelector(
+							".job-details-jobs-unified-top-card__company-name, .topcard__org-name-link, a[href*='/company/']",
+						)?.textContent?.trim() || "";
+					return { title, company };
+				});
+
+				const keywords = `${info?.title ?? ""} ${info?.company ?? ""}`.trim() || jobId;
+
+				return toolJson({
+					url: `${LINKEDIN_BASE}/jobs/search/?keywords=${encodeURIComponent(keywords)}`,
+					job_id: jobId,
+					keywords,
+					dismissed: true,
+					already_dismissed: false,
+				});
+			}),
+	);
+
+	server.registerTool(
+		"get_job_apply_url",
+		{
+			title: "Get Job Apply URL",
+			description: "Get how a job posting takes applications and the employer's application link",
+			inputSchema: z.object({
+				job_id: z.string().describe("LinkedIn job ID"),
+			}),
+			annotations: { readOnlyHint: true, openWorldHint: true },
+		},
+		async (args) =>
+			wrapTool(config, async () => {
+				const jobId = normalizeJobId(args.job_id);
+				const url = `${LINKEDIN_BASE}/jobs/view/${encodeURIComponent(jobId)}/`;
+				await browserManager.navigate(url);
+				await Bun.sleep(1200);
+
+				const currentUrl = await getCurrentUrl();
+				const applyRaw = await browserManager.evaluate<unknown>(() => {
+					const nodes = [...document.querySelectorAll("button, span, a")];
+					const easy = nodes.some((el) => /easy apply/i.test(el.textContent || ""));
+					if (easy) return { type: "easy_apply" };
+					const applyLink = [...document.querySelectorAll("a")].find((a) => {
+						const t = (a.textContent || "").trim();
+						return /^apply$/i.test(t) && !!a.getAttribute("href");
+					});
+					if (applyLink) return { type: "external", url: applyLink.getAttribute("href") };
+					const applied = nodes.some((el) => /applied/i.test(el.textContent || ""));
+					if (applied) return { type: "applied" };
+					const text = (document.body?.innerText || "").toLowerCase();
+					if (/no longer accepting|position is closed|closed/i.test(text)) {
+						return { type: "closed" };
+					}
+					return { type: "unknown" };
+				});
+
+				const apply =
+					applyRaw && typeof applyRaw === "object" && "type" in (applyRaw as Record<string, unknown>)
+						? (applyRaw as { type: string; url?: string })
+						: { type: "unknown" };
+
+				return toolJson({ url: currentUrl, apply });
+			}),
+	);
+
+	server.registerTool(
+		"get_easy_apply_form",
+		{
+			title: "Get Easy Apply Form",
+			description: "Read the questions of a job posting's Easy Apply form without answering them",
+			inputSchema: z.object({
+				job_id: z.string().describe("LinkedIn job ID"),
+			}),
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: true,
+			},
+		},
+		async (args) =>
+			wrapTool(config, async () => {
+				const jobId = normalizeJobId(args.job_id);
+				const url = `${LINKEDIN_BASE}/jobs/view/${encodeURIComponent(jobId)}/`;
+				await browserManager.navigate(url);
+				await Bun.sleep(1200);
+
+				const currentUrl = await getCurrentUrl();
+				const applyRaw = await browserManager.evaluate<unknown>(() => {
+					const nodes = [...document.querySelectorAll("button, span, a")];
+					const easy = nodes.some((el) => /easy apply/i.test(el.textContent || ""));
+					if (easy) return { type: "easy_apply" };
+					const applied = nodes.some((el) => /applied/i.test(el.textContent || ""));
+					if (applied) return { type: "applied" };
+					const text = (document.body?.innerText || "").toLowerCase();
+					if (/no longer accepting|position is closed|closed/i.test(text)) {
+						return { type: "closed" };
+					}
+					return { type: "unknown" };
+				});
+
+				const apply =
+					applyRaw && typeof applyRaw === "object" && "type" in (applyRaw as Record<string, unknown>)
+						? (applyRaw as { type: string })
+						: { type: "unknown" };
+
+				let steps: unknown[] = [];
+				let complete = false;
+
+				if (apply.type === "easy_apply") {
+					await browserManager.evaluate(() => {
+						const btn = [...document.querySelectorAll("button")].find((el) =>
+							/easy apply/i.test(el.textContent || ""),
+						);
+						if (btn) (btn as HTMLElement).click();
+					});
+					await Bun.sleep(1500);
+
+					const formRaw = await browserManager.evaluate<unknown>(() => {
+						const container = (document.querySelector('div[role="dialog"]') ||
+							document) as HTMLElement;
+						const fields = [...container.querySelectorAll("input, select, textarea")].map((el) => {
+							const input = el as HTMLInputElement;
+							return {
+								label:
+									input.getAttribute("aria-label") ||
+									input.labels?.[0]?.textContent?.trim() ||
+									input.placeholder ||
+									input.name ||
+									"",
+								type: input.tagName === "SELECT" ? "select" : input.type || "text",
+								required:
+									!!input.required || input.getAttribute("aria-required") === "true",
+								options:
+									input.tagName === "SELECT"
+										? [...(input as unknown as HTMLSelectElement).options]
+												.map((o) => o.textContent?.trim())
+												.filter(Boolean)
+										: undefined,
+								maxLength: input.maxLength && input.maxLength > 0 ? input.maxLength : undefined,
+								value: input.value || undefined,
+							};
+						});
+						return { steps: fields.length ? [{ fields }] : [], complete: false };
+					});
+
+					if (formRaw && typeof formRaw === "object") {
+						const fr = formRaw as { steps?: unknown[]; complete?: boolean };
+						if (Array.isArray(fr.steps)) steps = fr.steps;
+						if (typeof fr.complete === "boolean") complete = fr.complete;
+					}
+
+					await browserManager.evaluate(() => {
+						const close = [...document.querySelectorAll("button")].find((b) => {
+							const label = `${b.getAttribute("aria-label") || ""} ${b.textContent || ""}`;
+							return /close|dismiss/i.test(label);
+						});
+						if (close) (close as HTMLElement).click();
+					});
+				}
+
+				return toolJson({
+					url: currentUrl,
+					apply: { type: apply.type },
+					form: { steps, complete },
+				});
+			}),
+	);
+
+}
+
+function normalizeJobId(value: string): string {
+	const m = String(value).match(/jobs\/view\/(?:[^/?#]*?-)?(\d+)/);
+	if (m?.[1]) return m[1];
+	const trimmed = String(value).trim();
+	if (/^\d+$/.test(trimmed)) return trimmed;
+	return trimmed;
 }

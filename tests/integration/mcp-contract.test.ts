@@ -16,13 +16,19 @@ const EXPECTED_TOOLS = [
 	"get_job_details",
 	"search_jobs",
 	"get_saved_jobs",
+	"dismiss_job",
+	"get_job_apply_url",
+	"get_easy_apply_form",
 	"get_feed",
 	"get_inbox",
 	"get_conversation",
 	"search_conversations",
 	"send_message",
+	"archive_conversation",
+	"reply_to_conversation",
 	"search_posts",
 	"close_session",
+	"get_session_status",
 ] as const;
 
 describe("Integration: MCP Server Contract", () => {
@@ -34,12 +40,12 @@ describe("Integration: MCP Server Contract", () => {
 		}
 	)._registeredTools;
 
-	test("registers all 19 required tools with MCP server", () => {
+	test("registers all 25 required tools with MCP server", () => {
 		const toolNames = Object.keys(registered);
 		for (const name of EXPECTED_TOOLS) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames.length).toBe(19);
+		expect(toolNames.length).toBe(25);
 	});
 
 	test("person profile input schema validates parameters from registered tool", () => {
