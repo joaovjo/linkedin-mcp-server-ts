@@ -18,6 +18,7 @@ import {
 	originValidationResponse,
 } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
+import { startBridge } from "./bridge/index.ts";
 import { performImportFromBrowser, performLogin, performLogout, performStatus } from "./browser/auth.ts";
 import { browserManager } from "./browser/manager.ts";
 import { loadConfig } from "./config.ts";
@@ -74,6 +75,11 @@ const closeBrowser = async () => {
 	}
 };
 
+let bridgeHandle: { stop: () => void } | null = null;
+if (config.bridgeEnabled) {
+	bridgeHandle = startBridge({ port: config.bridgePort });
+}
+
 if (config.transport === "stdio") {
 	const handle = serveStdio(() => createMcpServer(config));
 	console.error("  Listening on stdio");
@@ -81,6 +87,7 @@ if (config.transport === "stdio") {
 	const shutdown = async () => {
 		console.error("\nShutting down...");
 		await handle.close();
+		bridgeHandle?.stop();
 		await closeBrowser();
 		process.exit(0);
 	};
@@ -121,6 +128,7 @@ if (config.transport === "stdio") {
 		console.error("\nShutting down...");
 		await mcpHandler.close();
 		server.stop(true);
+		bridgeHandle?.stop();
 		await closeBrowser();
 		process.exit(0);
 	};
