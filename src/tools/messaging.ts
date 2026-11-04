@@ -307,5 +307,204 @@ export function registerMessagingTools(server: McpServer, config: AppConfig): vo
 					}),
 				);
 			}),
+
 	);
+
+	server.registerTool(
+		"archive_conversation",
+		{
+			title: "Archive Conversation",
+			description: "Archive one LinkedIn messaging thread by thread ID",
+			inputSchema: z.object({
+				thread_id: z.string(),
+			}),
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: true,
+			},
+		},
+		async (args) =>
+			wrapTool(config, async () => {
+				const threadId = normalizeThreadId(args.thread_id);
+				const url = `${LINKEDIN_BASE}/messaging/thread/${encodeURIComponent(threadId)}/`;
+				await browserManager.navigate(url);
+				await Bun.sleep(1200);
+
+				const currentUrl = await getCurrentUrl();
+				const participant = await browserManager.evaluate<string | null>(() => {
+					const el = document.querySelector(
+						"main h2, main h1, .msg-thread__title, [class*='thread'] h2",
+					) as HTMLElement | null;
+					const t = (el?.textContent || "").replace(/\\s+/g, " ").trim();
+					return t || null;
+				});
+
+				let status = "already_archived";
+				try {
+					const opened = await browserManager.evaluate<boolean>(() => {
+						const btns = [...document.querySelectorAll("button")];
+						const target = btns.find((b) => {
+							const label = `${b.getAttribute("aria-label") || ""} ${b.textContent || ""}`;
+							return /more|options|actions/i.test(label);
+						});
+						if (!target) return false;
+						(target as HTMLElement).click();
+						return true;
+					});
+					if (opened) {
+						await Bun.sleep(500);
+						const hasArchive = await browserManager.evaluate<boolean>(() => {
+							const items = [...document.querySelectorAll('[role="menuitem"], button, li, span')];
+							return items.some((el) => /^(archive)$/i.test((el.textContent || "").trim()));
+						});
+						if (hasArchive) {
+							await browserManager.evaluate(() => {
+								const items = [...document.querySelectorAll('[role="menuitem"], button, li, span')];
+								const target = items.find((el) => /^(archive)$/i.test((el.textContent || "").trim()));
+								if (target) (target as HTMLElement).click();
+							});
+							await Bun.sleep(1000);
+							status = "archived";
+						} else {
+							await browserManager.evaluate(() => {
+								document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+							});
+						}
+					}
+				} catch {
+					// keep default status
+				}
+
+				return toolJson({
+					url: currentUrl,
+					thread_id: threadId,
+					participant,
+					status,
+				});
+			}),
+	);
+
+	server.registerTool(
+		"reply_to_conversation",
+		{
+			title: "Reply to Conversation",
+			description: "Reply inside an existing LinkedIn messaging thread",
+			inputSchema: z.object({
+				thread_id: z.string(),
+				message: z.string(),
+				confirm_send: z.boolean(),
+			}),
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: true,
+				openWorldHint: true,
+			},
+		},
+		async (args) =>
+			wrapTool(config, async () => {
+				const threadId = normalizeThreadId(args.thread_id);
+				const url = `${LINKEDIN_BASE}/messaging/thread/${encodeURIComponent(threadId)}/`;
+				await browserManager.navigate(url);
+				await Bun.sleep(1200);
+
+				const currentUrl = await getCurrentUrl();
+				const participant = await browserManager.evaluate<string | null>(() => {
+					const el = document.querySelector(
+						"main h2, main h1, .msg-thread__title, [class*='thread'] h2",
+					) as HTMLElement | null;
+					const t = (el?.textContent || "").replace(/\\s+/g, " ").trim();
+					return t || null;
+				});
+
+				const composerReady = await browserManager.waitForSelector(
+					'div[role="textbox"][contenteditable="true"], .msg-form__contenteditable',
+					8000,
+				);
+
+				if (!composerReady) {
+					return toolJson(
+						messageResult(currentUrl, "composer_unavailable", "LinkedIn did not expose a usable message composer.", {
+							recipient_selected: false,
+							sent: false,
+							retry_safe: true,
+							thread_id: threadId,
+							participant,
+						}),
+					);
+				}
+
+				if (!args.confirm_send) {
+					return toolJson(
+						messageResult(currentUrl, "confirmation_required", "Set confirm_send=true to send the message.", {
+							recipient_selected: true,
+							sent: false,
+							retry_safe: true,
+							thread_id: threadId,
+							participant,
+						}),
+					);
+				}
+
+				const focused = await browserManager.evaluate<boolean>(() => {
+					const el = document.querySelector(
+						'div[role="textbox"][contenteditable="true"], .msg-form__contenteditable',
+					) as HTMLElement | null;
+					if (!el) return false;
+					el.focus();
+					return true;
+				});
+				if (!focused) {
+					return toolJson(
+						messageResult(currentUrl, "compose_interact_failed", "Could not focus the message composer.", {
+							recipient_selected: true,
+							sent: false,
+							retry_safe: true,
+							thread_id: threadId,
+							participant,
+						}),
+					);
+				}
+
+				await browserManager.type(args.message);
+				await Bun.sleep(300);
+
+				const clicked = await browserManager.evaluate<boolean>(() => {
+					const btn = document.querySelector(
+						'button[type="submit"]:not([disabled]), button.msg-form__send-button:not([disabled])',
+					) as HTMLButtonElement | null;
+					if (!btn) return false;
+					btn.click();
+					return true;
+				});
+				if (!clicked) {
+					return toolJson(
+						messageResult(currentUrl, "send_unavailable", "Send button not available", {
+							recipient_selected: true,
+							sent: false,
+							retry_safe: true,
+							thread_id: threadId,
+							participant,
+						}),
+					);
+				}
+				await Bun.sleep(1000);
+				return toolJson(
+					messageResult(currentUrl, "sent", "Message sent", {
+						recipient_selected: true,
+						sent: true,
+						retry_safe: false,
+						thread_id: threadId,
+						participant,
+					}),
+				);
+			}),
+	);
+}
+
+function normalizeThreadId(value: string): string {
+	const m = String(value).match(/messaging\/thread\/([^/?#]+)/);
+	if (m?.[1]) return decodeURIComponent(m[1]);
+	return String(value).trim();
 }

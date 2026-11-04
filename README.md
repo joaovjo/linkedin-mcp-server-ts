@@ -13,7 +13,7 @@
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for LinkedIn scraping and automation, written in TypeScript and executed directly on [Bun](https://bun.sh).
 
-It gives AI assistants (Claude Desktop, Cursor, OpenCode, VS Code, Windsurf, Antigravity) 19 MCP tools to inspect profiles, search jobs and companies, manage messages, and fetch feed updates through your existing authenticated browser session.
+It gives AI assistants (Claude Desktop, Cursor, OpenCode, VS Code, Windsurf, Antigravity) 25 MCP tools to inspect profiles, search jobs and companies, manage messages, and fetch feed updates through your existing authenticated browser session.
 
 ---
 
@@ -37,11 +37,11 @@ It gives AI assistants (Claude Desktop, Cursor, OpenCode, VS Code, Windsurf, Ant
 | **Transports** | `stdio`, `streamable-http` | `stdio`, `streamable-http` (via native `Bun.serve`) |
 | **Session Directory** | `~/.linkedin-mcp/profile` | `~/.linkedin-mcp/profile` (Shared & Interoperable) |
 | **Validation** | Pydantic | Zod schemas |
-| **Tool Count** | 19 tools | 19 tools |
+| **Tool Count** | 19 tools | 25 tools |
 
 ---
 
-## Available MCP Tools (19 Tools)
+## Available MCP Tools (25 Tools)
 
 | Tool | Category | Description | Access |
 | :--- | :--- | :--- | :--- |
@@ -57,13 +57,19 @@ It gives AI assistants (Claude Desktop, Cursor, OpenCode, VS Code, Windsurf, Ant
 | `get_job_details` | Jobs | Fetch full job descriptions, criteria, and company metadata | Read-Only |
 | `search_jobs` | Jobs | Search jobs by keywords, location, date posted, job type, work type, and easy apply | Read-Only |
 | `get_saved_jobs` | Jobs | Retrieve the authenticated user's saved job listings | Read-Only |
+| `dismiss_job` | Jobs | Dismiss a job posting from job search results | Write / Action |
+| `get_job_apply_url` | Jobs | Get how a job posting takes applications and the employer's application link | Read-Only |
+| `get_easy_apply_form` | Jobs | Read the questions of a job posting's Easy Apply form without answering them | Read-Only |
 | `get_inbox` | Messaging | List recent conversation threads from the messaging inbox | Read-Only |
 | `get_conversation` | Messaging | Read messages from a thread by username or `thread_id` | Read-Only |
 | `search_conversations` | Messaging | Search messaging threads by keyword | Read-Only |
 | `send_message` | Messaging | Send a LinkedIn direct message (requires `confirm_send: true` confirmation) | Write / Action |
+| `archive_conversation` | Messaging | Archive a messaging thread by thread ID | Write / Action |
+| `reply_to_conversation` | Messaging | Reply inside an existing messaging thread | Write / Action |
 | `get_feed` | Feed | Retrieve recent posts from your home timeline | Read-Only |
 | `search_posts` | Feed | Global search across LinkedIn posts with recency filters | Read-Only |
 | `close_session` | Session | Terminate the browser session and release background process handles | Write / Action |
+| `get_session_status` | Session | Read local session state without opening a browser | Read-Only |
 
 ---
 
