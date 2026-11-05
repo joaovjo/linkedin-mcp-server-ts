@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Extracts LinkedIn data from your authenticated browser session to feed the LinkedIn MCP server.",
   "action": {
-    "default_popup": "popup/popup.html",
+    "default_popup": "src/popup/popup.html",
     "default_title": "LinkedIn MCP Bridge"
   },
   "background": {

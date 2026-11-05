@@ -4,26 +4,60 @@
   <meta charset="utf-8" />
   <title>LinkedIn MCP Bridge</title>
   <style>
-    body { font-family: system-ui, sans-serif; width: 320px; margin: 0; padding: 16px; }
+    body { font-family: system-ui, sans-serif; width: 360px; margin: 0; padding: 16px; }
     h1 { font-size: 16px; margin: 0 0 8px; }
-    p { font-size: 13px; line-height: 1.4; }
-    .status { padding: 8px; border-radius: 6px; margin: 12px 0; font-size: 13px; }
-    .connected { background: #e6f4ea; color: #137333; }
-    .disconnected { background: #fce8e6; color: #c5221f; }
-    button { padding: 8px 12px; margin-right: 8px; cursor: pointer; }
-    code { background: #f1f3f4; padding: 2px 4px; border-radius: 4px; }
+    p { font-size: 13px; line-height: 1.5; margin: 8px 0; }
+    .status { padding: 8px; border-radius: 6px; margin: 10px 0; font-size: 13px; }
+    .connected { background: #e6f4ea; color: #137333; border: 1px solid #b7e1cd; }
+    .disconnected { background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c3; }
+    button { padding: 8px 12px; margin-right: 8px; margin-bottom: 8px; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 13px; }
+    button:hover { background: #f5f5f5; }
+    button.primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    button.primary:hover { background: #1557b0; }
+    code { background: #f1f3f4; padding: 2px 4px; border-radius: 4px; font-size: 12px; word-break: break-all; }
+    .url-box { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 6px; padding: 10px; margin: 10px 0; }
+    .copy-btn { margin-left: 8px; font-size: 11px; padding: 4px 8px; }
+    .section { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; }
+    .section h2 { font-size: 13px; margin: 0 0 6px; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; }
+    .small { font-size: 11px; color: #666; }
   </style>
 </head>
 <body>
   <h1>LinkedIn MCP Bridge</h1>
-  <p>Connects this browser to the local LinkedIn MCP server bridge.</p>
-  <div id="status" class="status disconnected">Disconnected</div>
-  <div>
-    <button id="connect">Connect</button>
-    <button id="disconnect">Disconnect</button>
+  <p id="subtitle">Extrai dados do LinkedIn do seu navegador autenticado para o servidor MCP.</p>
+
+  <div id="status" class="status disconnected">Desconectado</div>
+
+  <div class="url-box">
+    <p style="margin:0 0 6px;"><strong>URL MCP para configurar na IA:</strong></p>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <code id="mcpUrl">http://127.0.0.1:8000/mcp</code>
+      <button id="copyUrl" class="copy-btn">Copiar</button>
+    </div>
+    <p class="small">Cole essa URL em seu cliente MCP (Claude Desktop, Cursor, OpenCode, etc.).</p>
   </div>
-  <p style="margin-top:12px;">Bridge URL: <code id="url">ws://127.0.0.1:8765</code></p>
-  <p>Start the server with <code>BRIDGE_ENABLED=true bun run src/index.ts</code>, then click Connect.</p>
+
+  <div>
+    <button id="connect" class="primary">Conectar Bridge</button>
+    <button id="disconnect">Desconectar</button>
+  </div>
+
+  <div class="section">
+    <h2>Status do Bridge</h2>
+    <p id="bridgeStatus">Bridge URL: <code id="bridgeUrl">ws://127.0.0.1:8765</code></p>
+    <p class="small" id="bridgeHint">Inicie o servidor com <code>bun run src/index.ts</code> (bridge ativo por padrão) e clique em Conectar.</p>
+  </div>
+
+  <div class="section">
+    <h2>Como usar</h2>
+    <ol style="font-size:12px; line-height:1.6; padding-left:16px;">
+      <li>Mantenha o servidor rodando: <code>bun run src/index.ts</code></li>
+      <li>Clique em <strong>Conectar Bridge</strong> nesta extensão.</li>
+      <li>Configure a URL acima no seu cliente MCP como transporte <em>streamable-http</em>.</li>
+      <li>A IA agora acessa o LinkedIn através desta extensão + servidor local.</li>
+    </ol>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
