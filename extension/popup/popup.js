@@ -26,7 +26,7 @@ function render(connected, bridgeUrl, mcpUrl) {
     mcpUrlEl.textContent = DEFAULT_MCP_URL;
     mcpUrlEl.setAttribute("data-value", DEFAULT_MCP_URL);
   }
-  bridgeHintEl.innerHTML = connected ? "Bridge conectado. A URL MCP acima está pronta para uso na IA." : "Inicie o servidor com <code>bun run src/index.ts</code> (bridge ativo por padrão) e clique em Conectar.";
+  bridgeHintEl.innerHTML = connected ? "Servidor MCP embutido na extensão está ativo. A URL acima está pronta para uso na IA." : "O servidor MCP está embutido nesta extensão. Clique em Conectar para ativar o bridge e usar a URL MCP acima na sua IA.";
 }
 async function refresh() {
   const response = await chrome.runtime.sendMessage({ type: "get_status" });

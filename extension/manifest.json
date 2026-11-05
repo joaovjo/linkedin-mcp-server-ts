@@ -25,5 +25,5 @@
     }
   ],
   "host_permissions": ["https://www.linkedin.com/*"],
-  "permissions": ["tabs", "storage", "alarms"]
+  "permissions": ["tabs", "storage", "alarms", "sockets.tcpServer", "sockets.tcp"]
 }

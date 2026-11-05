@@ -32,8 +32,8 @@ function render(connected: boolean, bridgeUrl?: string, mcpUrl?: string): void {
 	}
 
 	bridgeHintEl.innerHTML = connected
-		? "Bridge conectado. A URL MCP acima está pronta para uso na IA."
-		: "Inicie o servidor com <code>bun run src/index.ts</code> (bridge ativo por padrão) e clique em Conectar.";
+		? "Servidor MCP embutido na extensão está ativo. A URL acima está pronta para uso na IA."
+		: "O servidor MCP está embutido nesta extensão. Clique em Conectar para ativar o bridge e usar a URL MCP acima na sua IA.";
 }
 
 async function refresh(): Promise<void> {
