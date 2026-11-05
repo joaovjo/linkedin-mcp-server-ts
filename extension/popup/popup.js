@@ -1,3 +1,32 @@
+// src/logger.ts
+function log(level, event, fields = {}) {
+  const entry = {
+    ts: new Date().toISOString(),
+    level,
+    event,
+    ...fields
+  };
+  const line = JSON.stringify(entry);
+  if (level === "error") {
+    console.error(line);
+  } else if (level === "warn") {
+    console.warn(line);
+  } else {
+    console.info(line);
+  }
+}
+var logger = {
+  info(event, fields) {
+    log("info", event, fields);
+  },
+  warn(event, fields) {
+    log("warn", event, fields);
+  },
+  error(event, fields) {
+    log("error", event, fields);
+  }
+};
+
 // src/popup/popup.ts
 var statusEl = document.getElementById("status");
 var mcpUrlEl = document.getElementById("mcpUrl");
@@ -29,12 +58,19 @@ function render(connected, bridgeUrl, mcpUrl) {
   bridgeHintEl.innerHTML = connected ? "Bridge conectado ao servidor MCP local. A URL acima está pronta para uso na IA." : "Inicie o servidor MCP com <code>bun run src/index.ts</code> (bridge ativo por padrão em ws://127.0.0.1:8765) e clique em Conectar.";
 }
 async function refresh() {
-  const response = await chrome.runtime.sendMessage({ type: "get_status" });
-  const connected = Boolean(response?.bridgeConnected);
-  const bridgeUrl = response?.bridgeUrl || undefined;
-  const stored = await chrome.storage.local.get([STORAGE_KEYS.mcpUrl, STORAGE_KEYS.bridgeUrl]);
-  const mcpUrl = stored?.[STORAGE_KEYS.mcpUrl] || undefined;
-  render(connected, bridgeUrl, mcpUrl);
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "get_status" });
+    const connected = Boolean(response?.bridgeConnected);
+    const bridgeUrl = response?.bridgeUrl || undefined;
+    const stored = await chrome.storage.local.get([STORAGE_KEYS.mcpUrl, STORAGE_KEYS.bridgeUrl]);
+    const mcpUrl = stored?.[STORAGE_KEYS.mcpUrl] || undefined;
+    render(connected, bridgeUrl, mcpUrl);
+    logger.info("popup_refresh", { connected, bridgeUrl, mcpUrl });
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    logger.error("popup_error", { error, phase: "refresh" });
+    throw err;
+  }
 }
 async function saveMcpUrl(url) {
   await chrome.storage.local.set({ [STORAGE_KEYS.mcpUrl]: url });
@@ -43,38 +79,80 @@ async function saveBridgeUrl(url) {
   await chrome.storage.local.set({ [STORAGE_KEYS.bridgeUrl]: url });
 }
 copyBtn.addEventListener("click", async () => {
-  const value = mcpUrlEl.getAttribute("data-value") || DEFAULT_MCP_URL;
-  await navigator.clipboard.writeText(value);
-  const original = copyBtn.textContent;
-  copyBtn.textContent = "Copiado!";
-  setTimeout(() => {
-    copyBtn.textContent = original;
-  }, 1500);
-});
-connectBtn.addEventListener("click", async () => {
-  const bridgeUrl = bridgeUrlEl.textContent || DEFAULT_BRIDGE_URL;
-  await saveBridgeUrl(bridgeUrl);
-  await chrome.runtime.sendMessage({ type: "connect", bridgeUrl });
-  await refresh();
-});
-disconnectBtn.addEventListener("click", async () => {
-  await chrome.runtime.sendMessage({ type: "disconnect" });
-  await refresh();
-});
-mcpUrlEl.addEventListener("click", async () => {
-  const current = mcpUrlEl.getAttribute("data-value") || DEFAULT_MCP_URL;
-  const input = prompt("URL MCP:", current);
-  if (input && input.trim()) {
-    await saveMcpUrl(input.trim());
-    mcpUrlEl.textContent = input.trim();
-    mcpUrlEl.setAttribute("data-value", input.trim());
-    await navigator.clipboard.writeText(input.trim());
+  try {
+    const value = mcpUrlEl.getAttribute("data-value") || DEFAULT_MCP_URL;
+    await navigator.clipboard.writeText(value);
+    const original = copyBtn.textContent;
     copyBtn.textContent = "Copiado!";
     setTimeout(() => {
-      copyBtn.textContent = "Copiar";
+      copyBtn.textContent = original;
     }, 1500);
+  } catch (err) {
+    logger.error("popup_error", {
+      error: err instanceof Error ? err.message : String(err),
+      phase: "copy"
+    });
   }
 });
-refresh();
-var interval = setInterval(refresh, 5000);
+connectBtn.addEventListener("click", async () => {
+  try {
+    const bridgeUrl = bridgeUrlEl.textContent || DEFAULT_BRIDGE_URL;
+    logger.info("popup_connect_click", { bridgeUrl });
+    await saveBridgeUrl(bridgeUrl);
+    await chrome.runtime.sendMessage({ type: "connect", bridgeUrl });
+    await refresh();
+  } catch (err) {
+    logger.error("popup_error", {
+      error: err instanceof Error ? err.message : String(err),
+      phase: "connect"
+    });
+  }
+});
+disconnectBtn.addEventListener("click", async () => {
+  try {
+    await chrome.runtime.sendMessage({ type: "disconnect" });
+    await refresh();
+  } catch (err) {
+    logger.error("popup_error", {
+      error: err instanceof Error ? err.message : String(err),
+      phase: "disconnect"
+    });
+  }
+});
+mcpUrlEl.addEventListener("click", async () => {
+  try {
+    const current = mcpUrlEl.getAttribute("data-value") || DEFAULT_MCP_URL;
+    const input = prompt("URL MCP:", current);
+    if (input && input.trim()) {
+      await saveMcpUrl(input.trim());
+      mcpUrlEl.textContent = input.trim();
+      mcpUrlEl.setAttribute("data-value", input.trim());
+      await navigator.clipboard.writeText(input.trim());
+      copyBtn.textContent = "Copiado!";
+      setTimeout(() => {
+        copyBtn.textContent = "Copiar";
+      }, 1500);
+    }
+  } catch (err) {
+    logger.error("popup_error", {
+      error: err instanceof Error ? err.message : String(err),
+      phase: "mcpUrlEdit"
+    });
+  }
+});
+logger.info("popup_open", {});
+refresh().catch((err) => {
+  logger.error("popup_error", {
+    error: err instanceof Error ? err.message : String(err),
+    phase: "initial_refresh"
+  });
+});
+var interval = setInterval(() => {
+  refresh().catch((err) => {
+    logger.error("popup_error", {
+      error: err instanceof Error ? err.message : String(err),
+      phase: "poll_refresh"
+    });
+  });
+}, 5000);
 window.addEventListener("beforeunload", () => clearInterval(interval));
