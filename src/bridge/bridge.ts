@@ -20,6 +20,7 @@ interface PendingRequest {
 export function startBridge(options: BridgeOptions = {}): BridgeHandle {
 	const hostname = options.hostname ?? "127.0.0.1";
 	const port = options.port ?? 8765;
+	const pingIntervalMs = options.pingIntervalMs ?? 25_000;
 	const log = createLogger({ module: "bridge" });
 
 	const sockets = new Set<WebSocket>();
@@ -62,6 +63,26 @@ export function startBridge(options: BridgeOptions = {}): BridgeHandle {
 		}
 	};
 
+	const pingLog = () => log.debug("bridge_ping_broadcast", { clients: sockets.size });
+
+	let pingTimer: ReturnType<typeof setInterval> | null = null;
+	const sendKeepAlivePings = (): void => {
+		for (const ws of sockets) {
+			try {
+				ws.send(JSON.stringify({ type: "ping", id: createReqId() }));
+			} catch {
+				// ignore individual send failures; close handler cleans up
+			}
+		}
+		pingLog();
+	};
+	const stopPings = (): void => {
+		if (pingTimer) {
+			clearInterval(pingTimer);
+			pingTimer = null;
+		}
+	};
+
 	const server = Bun.serve({
 		hostname,
 		port,
@@ -90,6 +111,21 @@ export function startBridge(options: BridgeOptions = {}): BridgeHandle {
 					parsed = JSON.parse(String(message));
 				} catch {
 					parsed = null;
+				}
+
+				const msg = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+
+				// Keep-alive protocol: client ping -> pong; client pong is a no-op recruiter.
+				if (msg?.type === "ping") {
+					try {
+						socket.send(JSON.stringify({ type: "pong", id: msg.id ?? null }));
+					} catch {
+						// ignore send failures
+					}
+					return;
+				}
+				if (msg?.type === "pong") {
+					return;
 				}
 
 				if (parsed && typeof parsed === "object" && "id" in (parsed as Record<string, unknown>)) {
@@ -153,6 +189,10 @@ export function startBridge(options: BridgeOptions = {}): BridgeHandle {
 			},
 		},
 	});
+
+	if (pingIntervalMs > 0) {
+		pingTimer = setInterval(sendKeepAlivePings, pingIntervalMs);
+	}
 
 	const handle: BridgeHandle = {
 		server,
@@ -237,6 +277,7 @@ export function startBridge(options: BridgeOptions = {}): BridgeHandle {
 		},
 		stop() {
 			log.debug("bridge_stopped", { clients: sockets.size });
+			stopPings();
 			for (const [id, entry] of pending) {
 				clearTimeout(entry.timer);
 				pending.delete(id);

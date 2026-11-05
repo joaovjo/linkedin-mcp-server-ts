@@ -45,6 +45,32 @@ function clearReconnect(): void {
 	}
 }
 
+const KEEP_ALIVE_INTERVAL_MS = 25_000;
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+function clearKeepAlive(): void {
+	if (keepAliveTimer) {
+		clearInterval(keepAliveTimer);
+		keepAliveTimer = null;
+	}
+}
+
+function startKeepAlive(ws: WebSocket): void {
+	clearKeepAlive();
+	// The MV3 service worker idles out after ~30s without WebSocket activity,
+	// which kills this connection. Client pings (together with the bridge's own
+	// server-side pings) keep the socket constantly active so the SW stays up.
+	keepAliveTimer = setInterval(() => {
+		if (ws.readyState === WebSocket.OPEN) {
+			try {
+				ws.send(JSON.stringify({ type: "ping", id: newConnId() }));
+			} catch {
+				// ignore send failures; the close handler reconnects
+			}
+		}
+	}, KEEP_ALIVE_INTERVAL_MS);
+}
+
 function scheduleReconnect(): void {
 	clearReconnect();
 	reconnectTimer = setTimeout(() => {
@@ -76,6 +102,7 @@ async function connectBridge(): Promise<void> {
 	socket.addEventListener("open", () => {
 		const latency_ms = Date.now() - connectStartedAt;
 		logger.info("connect_open", { url, conn_id: connId, latency_ms });
+		startKeepAlive(socket);
 		void setConnected(true);
 	});
 	socket.addEventListener("message", (event: MessageEvent) => {
@@ -88,6 +115,7 @@ async function connectBridge(): Promise<void> {
 			code: event.code,
 			reason: event.reason || undefined,
 		});
+		clearKeepAlive();
 		socket = null;
 		void setConnected(false);
 		scheduleReconnect();
@@ -178,6 +206,7 @@ async function handleBridgeMessage(raw: string): Promise<void> {
 
 export function disconnectBridge(): void {
 	clearReconnect();
+	clearKeepAlive();
 	if (socket) {
 		try {
 			socket.close();
