@@ -290,7 +290,7 @@ Configure settings via CLI flags or a `.env` file in the workspace root:
 | `VIEWPORT` | `--viewport` | `1280x720` | Browser viewport dimensions (`WIDTHxHEIGHT`) |
 | `DEBUG_PORT` | `--debug-port` | `9222` | Chrome remote debugging port used during `--login` |
 | `LOG_LEVEL` | `--log-level` | `WARNING` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `BRIDGE_ENABLED` | `--bridge` | `false` | Start the local WebSocket bridge for the Chrome extension |
+| `BRIDGE_ENABLED` | `--bridge` / `--no-bridge` | `true` | Start the local WebSocket bridge for the Chrome extension (enabled by default) |
 | `BRIDGE_PORT` | `--bridge-port` | `8765` | Port for the local WebSocket bridge |
 
 ---

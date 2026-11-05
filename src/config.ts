@@ -52,7 +52,7 @@ export interface AppConfig {
 	mode: "serve" | "login" | "logout" | "status" | "import";
 	/** Optional browser target name for importing cookies. */
 	importBrowser?: string;
-	/** Whether to start the local WebSocket bridge for the Chrome extension. Default: false. */
+	/** Whether to start the local WebSocket bridge for the Chrome extension. Default: true. */
 	bridgeEnabled: boolean;
 	/** Port for the local WebSocket bridge. Default: 8765. */
 	bridgePort: number;
@@ -138,7 +138,7 @@ export function loadConfig(args: string[] = Bun.argv.slice(2)): AppConfig {
 			logout: { type: "boolean", default: false },
 			status: { type: "boolean", default: false },
 			"import-from-browser": { type: "string" },
-			bridge: { type: "boolean", default: false },
+			bridge: { type: "boolean", default: true },
 			"bridge-port": { type: "string", default: env("BRIDGE_PORT", "8765") },
 		},
 		allowPositionals: true,
@@ -190,7 +190,7 @@ export function loadConfig(args: string[] = Bun.argv.slice(2)): AppConfig {
 		mode,
 		importBrowser:
 			parsed.values["import-from-browser"] === undefined ? undefined : String(parsed.values["import-from-browser"] || "auto"),
-		bridgeEnabled: parsed.values.bridge ? true : envBool("BRIDGE_ENABLED", false),
+		bridgeEnabled: parsed.values.bridge ?? envBool("BRIDGE_ENABLED", true),
 		bridgePort: Number(parsed.values["bridge-port"] ?? 8765),
 	};
 }
