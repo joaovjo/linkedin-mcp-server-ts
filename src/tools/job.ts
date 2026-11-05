@@ -283,16 +283,15 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 				await browserManager.navigate(jobUrl);
 				await Bun.sleep(1200);
 
-				const currentUrl = await getCurrentUrl();
 				const info = await browserManager.evaluate<{ title: string; company: string }>(() => {
 					const title =
-						document.querySelector(
-							"h1, .job-details-jobs-unified-top-card__job-title, .top-card-layout__title",
-						)?.textContent?.trim() || "";
+						document
+							.querySelector("h1, .job-details-jobs-unified-top-card__job-title, .top-card-layout__title")
+							?.textContent?.trim() || "";
 					const company =
-						document.querySelector(
-							".job-details-jobs-unified-top-card__company-name, .topcard__org-name-link, a[href*='/company/']",
-						)?.textContent?.trim() || "";
+						document
+							.querySelector(".job-details-jobs-unified-top-card__company-name, .topcard__org-name-link, a[href*='/company/']")
+							?.textContent?.trim() || "";
 					return { title, company };
 				});
 
@@ -399,16 +398,13 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 
 				if (apply.type === "easy_apply") {
 					await browserManager.evaluate(() => {
-						const btn = [...document.querySelectorAll("button")].find((el) =>
-							/easy apply/i.test(el.textContent || ""),
-						);
+						const btn = [...document.querySelectorAll("button")].find((el) => /easy apply/i.test(el.textContent || ""));
 						if (btn) (btn as HTMLElement).click();
 					});
 					await Bun.sleep(1500);
 
 					const formRaw = await browserManager.evaluate<unknown>(() => {
-						const container = (document.querySelector('div[role="dialog"]') ||
-							document) as HTMLElement;
+						const container = (document.querySelector('div[role="dialog"]') || document) as HTMLElement;
 						const fields = [...container.querySelectorAll("input, select, textarea")].map((el) => {
 							const input = el as HTMLInputElement;
 							return {
@@ -419,13 +415,10 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 									input.name ||
 									"",
 								type: input.tagName === "SELECT" ? "select" : input.type || "text",
-								required:
-									!!input.required || input.getAttribute("aria-required") === "true",
+								required: !!input.required || input.getAttribute("aria-required") === "true",
 								options:
 									input.tagName === "SELECT"
-										? [...(input as unknown as HTMLSelectElement).options]
-												.map((o) => o.textContent?.trim())
-												.filter(Boolean)
+										? [...(input as unknown as HTMLSelectElement).options].map((o) => o.textContent?.trim()).filter(Boolean)
 										: undefined,
 								maxLength: input.maxLength && input.maxLength > 0 ? input.maxLength : undefined,
 								value: input.value || undefined,
@@ -456,7 +449,6 @@ export function registerJobTools(server: McpServer, config: AppConfig): void {
 				});
 			}),
 	);
-
 }
 
 function normalizeJobId(value: string): string {

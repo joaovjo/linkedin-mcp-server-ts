@@ -307,7 +307,6 @@ export function registerMessagingTools(server: McpServer, config: AppConfig): vo
 					}),
 				);
 			}),
-
 	);
 
 	server.registerTool(
@@ -334,9 +333,7 @@ export function registerMessagingTools(server: McpServer, config: AppConfig): vo
 
 				const currentUrl = await getCurrentUrl();
 				const participant = await browserManager.evaluate<string | null>(() => {
-					const el = document.querySelector(
-						"main h2, main h1, .msg-thread__title, [class*='thread'] h2",
-					) as HTMLElement | null;
+					const el = document.querySelector("main h2, main h1, .msg-thread__title, [class*='thread'] h2") as HTMLElement | null;
 					const t = (el?.textContent || "").replace(/\\s+/g, " ").trim();
 					return t || null;
 				});
@@ -411,9 +408,7 @@ export function registerMessagingTools(server: McpServer, config: AppConfig): vo
 
 				const currentUrl = await getCurrentUrl();
 				const participant = await browserManager.evaluate<string | null>(() => {
-					const el = document.querySelector(
-						"main h2, main h1, .msg-thread__title, [class*='thread'] h2",
-					) as HTMLElement | null;
+					const el = document.querySelector("main h2, main h1, .msg-thread__title, [class*='thread'] h2") as HTMLElement | null;
 					const t = (el?.textContent || "").replace(/\\s+/g, " ").trim();
 					return t || null;
 				});

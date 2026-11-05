@@ -23,7 +23,14 @@ describe("E2E: Hermetic New Tools", () => {
 		userDataDir = join(tempDir, "profile");
 
 		await writeCookies(userDataDir, [
-			{ name: "li_at", value: "mock_session_secret_token_12345", domain: ".linkedin.com", path: "/", httpOnly: true, secure: true },
+			{
+				name: "li_at",
+				value: "mock_session_secret_token_12345",
+				domain: ".linkedin.com",
+				path: "/",
+				httpOnly: true,
+				secure: true,
+			},
 			{ name: "JSESSIONID", value: "ajax_session_val", domain: ".linkedin.com", path: "/" },
 		]);
 		await writeSourceState(userDataDir, {
@@ -43,7 +50,9 @@ describe("E2E: Hermetic New Tools", () => {
 		browserManager.ensureReady = async () => {};
 		browserManager.navigate = async () => {};
 		browserManager.getCurrentUrl = async () => "https://www.linkedin.com/messaging/thread/abc123/";
-		browserManager.exportCookies = async () => [{ name: "li_at", value: "mock_session_secret_token_12345", domain: ".linkedin.com", path: "/" }];
+		browserManager.exportCookies = async () => [
+			{ name: "li_at", value: "mock_session_secret_token_12345", domain: ".linkedin.com", path: "/" },
+		];
 		browserManager.waitForSelector = async () => true;
 		browserManager.evaluate = async (script: unknown, ..._args: unknown[]) => {
 			if (typeof script === "function") {
@@ -63,14 +72,20 @@ describe("E2E: Hermetic New Tools", () => {
 		browserManager.ensureReady = origEnsureReady;
 		browserManager.exportCookies = origExportCookies;
 		browserManager.waitForSelector = origWaitForSelector;
-		try { await rm(tempDir, { recursive: true, force: true }); } catch {}
+		try {
+			await rm(tempDir, { recursive: true, force: true });
+		} catch {}
 	});
 
 	const config = () => loadConfig(["--transport", "stdio", "--user-data-dir", userDataDir, "--login-inline-wait", "0"]);
 
 	async function invoke(name: string, args: Record<string, unknown>) {
 		const server = createMcpServer(config());
-		const registered = (server as unknown as { _registeredTools: Record<string, { handler: (a: Record<string, unknown>) => Promise<ToolContentResult> }> })._registeredTools;
+		const registered = (
+			server as unknown as {
+				_registeredTools: Record<string, { handler: (a: Record<string, unknown>) => Promise<ToolContentResult> }>;
+			}
+		)._registeredTools;
 		const tool = registered[name];
 		expect(tool).toBeDefined();
 		if (!tool) throw new Error(`${name} not registered`);

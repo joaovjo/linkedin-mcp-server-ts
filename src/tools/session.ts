@@ -1,5 +1,5 @@
-import type { McpServer } from "@modelcontextprotocol/server";
 import { existsSync } from "node:fs";
+import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { browserManager } from "../browser/manager.ts";
 import type { AppConfig } from "../config.ts";
@@ -51,7 +51,7 @@ export function registerSessionTools(server: McpServer, config: AppConfig): void
 						session: {
 							stored,
 							profile: existsSync(config.userDataDir),
-							cookies: !!(cookies && cookies.length),
+							cookies: !!cookies?.length,
 						},
 						runtime: sourceState?.runtime_id ?? null,
 						browser: {
