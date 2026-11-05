@@ -1,6 +1,8 @@
 /* global chrome */
 declare const chrome: any;
 
+import { logger } from "../logger";
+
 const statusEl = document.getElementById("status") as HTMLDivElement;
 const mcpUrlEl = document.getElementById("mcpUrl") as HTMLElement;
 const copyBtn = document.getElementById("copyUrl") as HTMLButtonElement;
@@ -37,12 +39,19 @@ function render(connected: boolean, bridgeUrl?: string, mcpUrl?: string): void {
 }
 
 async function refresh(): Promise<void> {
-	const response = await chrome.runtime.sendMessage({ type: "get_status" });
-	const connected = Boolean(response?.bridgeConnected);
-	const bridgeUrl = (response?.bridgeUrl as string) || undefined;
-	const stored = await chrome.storage.local.get([STORAGE_KEYS.mcpUrl, STORAGE_KEYS.bridgeUrl]);
-	const mcpUrl = (stored?.[STORAGE_KEYS.mcpUrl] as string) || undefined;
-	render(connected, bridgeUrl, mcpUrl);
+	try {
+		const response = await chrome.runtime.sendMessage({ type: "get_status" });
+		const connected = Boolean(response?.bridgeConnected);
+		const bridgeUrl = (response?.bridgeUrl as string) || undefined;
+		const stored = await chrome.storage.local.get([STORAGE_KEYS.mcpUrl, STORAGE_KEYS.bridgeUrl]);
+		const mcpUrl = (stored?.[STORAGE_KEYS.mcpUrl] as string) || undefined;
+		render(connected, bridgeUrl, mcpUrl);
+		logger.info("popup_refresh", { connected, bridgeUrl, mcpUrl });
+	} catch (err) {
+		const error = err instanceof Error ? err.message : String(err);
+		logger.error("popup_error", { error, phase: "refresh" });
+		throw err;
+	}
 }
 
 async function saveMcpUrl(url: string): Promise<void> {
@@ -54,43 +63,86 @@ async function saveBridgeUrl(url: string): Promise<void> {
 }
 
 copyBtn.addEventListener("click", async () => {
-	const value = mcpUrlEl.getAttribute("data-value") || DEFAULT_MCP_URL;
-	await navigator.clipboard.writeText(value);
-	const original = copyBtn.textContent;
-	copyBtn.textContent = "Copiado!";
-	setTimeout(() => {
-		copyBtn.textContent = original;
-	}, 1500);
+	try {
+		const value = mcpUrlEl.getAttribute("data-value") || DEFAULT_MCP_URL;
+		await navigator.clipboard.writeText(value);
+		const original = copyBtn.textContent;
+		copyBtn.textContent = "Copiado!";
+		setTimeout(() => {
+			copyBtn.textContent = original;
+		}, 1500);
+	} catch (err) {
+		logger.error("popup_error", {
+			error: err instanceof Error ? err.message : String(err),
+			phase: "copy",
+		});
+	}
 });
 
 connectBtn.addEventListener("click", async () => {
-	const bridgeUrl = bridgeUrlEl.textContent || DEFAULT_BRIDGE_URL;
-	await saveBridgeUrl(bridgeUrl);
-	await chrome.runtime.sendMessage({ type: "connect", bridgeUrl });
-	await refresh();
+	try {
+		const bridgeUrl = bridgeUrlEl.textContent || DEFAULT_BRIDGE_URL;
+		logger.info("popup_connect_click", { bridgeUrl });
+		await saveBridgeUrl(bridgeUrl);
+		await chrome.runtime.sendMessage({ type: "connect", bridgeUrl });
+		await refresh();
+	} catch (err) {
+		logger.error("popup_error", {
+			error: err instanceof Error ? err.message : String(err),
+			phase: "connect",
+		});
+	}
 });
 
 disconnectBtn.addEventListener("click", async () => {
-	await chrome.runtime.sendMessage({ type: "disconnect" });
-	await refresh();
+	try {
+		await chrome.runtime.sendMessage({ type: "disconnect" });
+		await refresh();
+	} catch (err) {
+		logger.error("popup_error", {
+			error: err instanceof Error ? err.message : String(err),
+			phase: "disconnect",
+		});
+	}
 });
 
 // Permitir editar a URL MCP clicando no código
 mcpUrlEl.addEventListener("click", async () => {
-	const current = mcpUrlEl.getAttribute("data-value") || DEFAULT_MCP_URL;
-	const input = prompt("URL MCP:", current);
-	if (input && input.trim()) {
-		await saveMcpUrl(input.trim());
-		mcpUrlEl.textContent = input.trim();
-		mcpUrlEl.setAttribute("data-value", input.trim());
-		await navigator.clipboard.writeText(input.trim());
-		copyBtn.textContent = "Copiado!";
-		setTimeout(() => { copyBtn.textContent = "Copiar"; }, 1500);
+	try {
+		const current = mcpUrlEl.getAttribute("data-value") || DEFAULT_MCP_URL;
+		const input = prompt("URL MCP:", current);
+		if (input && input.trim()) {
+			await saveMcpUrl(input.trim());
+			mcpUrlEl.textContent = input.trim();
+			mcpUrlEl.setAttribute("data-value", input.trim());
+			await navigator.clipboard.writeText(input.trim());
+			copyBtn.textContent = "Copiado!";
+			setTimeout(() => { copyBtn.textContent = "Copiar"; }, 1500);
+		}
+	} catch (err) {
+		logger.error("popup_error", {
+			error: err instanceof Error ? err.message : String(err),
+			phase: "mcpUrlEdit",
+		});
 	}
 });
 
-void refresh();
+logger.info("popup_open", {});
+
+void refresh().catch((err) => {
+	logger.error("popup_error", {
+		error: err instanceof Error ? err.message : String(err),
+		phase: "initial_refresh",
+	});
+});
 
 // Re-verifica status a cada 5s enquanto o popup estiver aberto
-const interval = setInterval(refresh, 5000);
+const interval = setInterval(() => {
+	void refresh().catch((err) => {
+		logger.error("popup_error", {
+			error: err instanceof Error ? err.message : String(err),
+			phase: "poll_refresh",
+		});
+	});
+}, 5000);
 window.addEventListener("beforeunload", () => clearInterval(interval));

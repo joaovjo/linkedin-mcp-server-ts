@@ -1,6 +1,8 @@
 /* global chrome */
 declare const chrome: any;
 
+import { logger } from "./logger";
+
 const DEFAULT_BRIDGE_URL = "ws://127.0.0.1:8765";
 const STORAGE_KEYS = {
 	mcpUrl: "popupMcpUrl",
@@ -8,8 +10,21 @@ const STORAGE_KEYS = {
 	lastConnectedAt: "lastConnectedAt",
 };
 
+const BRIDGE_UNREACHABLE_MSG =
+	"bridge unreachable — is bun run src/index.ts running?";
+
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let connId: string | null = null;
+let connectStartedAt = 0;
+
+function newConnId(): string {
+	try {
+		return crypto.randomUUID();
+	} catch {
+		return `conn-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+	}
+}
 
 async function getBridgeUrl(): Promise<string> {
 	const stored = await chrome.storage.local.get(STORAGE_KEYS.bridgeUrl);
@@ -41,25 +56,48 @@ async function connectBridge(): Promise<void> {
 		return;
 	}
 	const url = await getBridgeUrl();
+	connId = newConnId();
+	connectStartedAt = Date.now();
+	logger.info("connect_start", { url, conn_id: connId });
 	try {
 		socket = new WebSocket(url);
-	} catch {
+	} catch (err) {
+		logger.error("connect_failed", {
+			url,
+			conn_id: connId,
+			error: err instanceof Error ? err.message : String(err),
+			msg: BRIDGE_UNREACHABLE_MSG,
+		});
 		await setConnected(false);
 		scheduleReconnect();
 		return;
 	}
 	socket.addEventListener("open", () => {
+		const latency_ms = Date.now() - connectStartedAt;
+		logger.info("connect_open", { url, conn_id: connId, latency_ms });
 		void setConnected(true);
 	});
 	socket.addEventListener("message", (event: MessageEvent) => {
 		void handleBridgeMessage(String(event.data ?? ""));
 	});
-	socket.addEventListener("close", () => {
+	socket.addEventListener("close", (event: CloseEvent) => {
+		logger.info("connect_close", {
+			url,
+			conn_id: connId,
+			code: event.code,
+			reason: event.reason || undefined,
+		});
 		socket = null;
 		void setConnected(false);
 		scheduleReconnect();
 	});
-	socket.addEventListener("error", () => {
+	socket.addEventListener("error", (event: Event) => {
+		logger.error("connect_error", {
+			url,
+			conn_id: connId,
+			error: (event as { message?: string }).message ?? "WebSocket error",
+			msg: BRIDGE_UNREACHABLE_MSG,
+		});
 		void setConnected(false);
 	});
 }
@@ -79,16 +117,22 @@ async function handleBridgeMessage(raw: string): Promise<void> {
 	}
 
 	if (message.type === "extract" && message.target) {
+		const reqId = message.id;
+		const target = message.target;
+		logger.info("extract_request", { reqId, target, conn_id: connId });
+		const extractStartedAt = Date.now();
 		const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 		const tab = tabs?.[0];
 		if (!tab?.id) {
+			const error = "No active tab";
+			logger.error("extract_error", { reqId, target, error, conn_id: connId });
 			socket?.send(
 				JSON.stringify({
 					id: message.id,
 					type: "extract_result",
 					target: message.target,
 					ok: false,
-					error: "No active tab",
+					error,
 				}),
 			);
 			return;
@@ -99,15 +143,19 @@ async function handleBridgeMessage(raw: string): Promise<void> {
 				target: message.target,
 				params: message.params,
 			});
+			const latency_ms = Date.now() - extractStartedAt;
+			logger.info("extract_success", { reqId, target, latency_ms, conn_id: connId });
 			socket?.send(JSON.stringify({ id: message.id, ...result }));
 		} catch (err) {
+			const error = err instanceof Error ? err.message : String(err);
+			logger.error("extract_error", { reqId, target, error, conn_id: connId });
 			socket?.send(
 				JSON.stringify({
 					id: message.id,
 					type: "extract_result",
 					target: message.target,
 					ok: false,
-					error: err instanceof Error ? err.message : String(err),
+					error,
 				}),
 			);
 		}
@@ -126,6 +174,8 @@ export function disconnectBridge(): void {
 	}
 	void setConnected(false);
 }
+
+logger.info("extension_sw_started", { bridgeUrl: DEFAULT_BRIDGE_URL });
 
 chrome.runtime.onInstalled.addListener(() => {
 	void chrome.storage.local.get(STORAGE_KEYS.bridgeUrl).then((stored: Record<string, unknown>) => {
