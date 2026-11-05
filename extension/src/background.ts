@@ -122,8 +122,8 @@ async function handleBridgeMessage(raw: string): Promise<void> {
 		const target = message.target;
 		logger.info("extract_request", { reqId, target, conn_id: connId });
 		const extractStartedAt = Date.now();
-		const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-		const tab = tabs?.[0];
+		const tabs = await chrome.tabs.query({ url: "https://www.linkedin.com/*" });
+		const tab = tabs.find((t: { url?: string }) => t.url?.includes("linkedin.com/in/") || t.url?.includes("linkedin.com/company/") || t.url?.includes("linkedin.com/jobs/") || t.url?.includes("linkedin.com/feed/") || t.url?.includes("linkedin.com/messaging/")) ?? tabs[0];
 		if (!tab?.id) {
 			const error = "No active tab";
 			logger.error("extract_error", { reqId, target, error, conn_id: connId });
@@ -217,8 +217,8 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendRe
 					break;
 				}
 				case "extract": {
-					const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-					const tab = tabs?.[0];
+					const tabs = await chrome.tabs.query({ url: "https://www.linkedin.com/*" });
+					const tab = tabs[0];
 					if (!tab?.id) {
 						sendResponse({ ok: false, error: "No active tab" });
 						break;
