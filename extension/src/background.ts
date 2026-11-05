@@ -103,6 +103,20 @@ async function connectBridge(): Promise<void> {
 	});
 }
 
+const LINKEDIN_ORIGIN = "https://www.linkedin.com/";
+const PREFERRED_PAGE_HINTS = ["/in/", "/company/", "/jobs/", "/feed/", "/messaging/"];
+
+async function findLinkedInTab(): Promise<{
+	tab: { id?: number; url?: string } | undefined;
+	tabsCount: number;
+	allTabsCount: number;
+}> {
+	const allTabs: Array<{ id?: number; url?: string }> = await chrome.tabs.query({});
+	const tabs = allTabs.filter((t) => t.url?.startsWith(LINKEDIN_ORIGIN));
+	const tab = tabs.find((t) => PREFERRED_PAGE_HINTS.some((hint) => t.url?.includes(hint))) ?? tabs[0];
+	return { tab, tabsCount: tabs.length, allTabsCount: allTabs.length };
+}
+
 async function handleBridgeMessage(raw: string): Promise<void> {
 	let message: { id?: string; type?: string; target?: string; params?: unknown } | null = null;
 	try {
@@ -122,11 +136,10 @@ async function handleBridgeMessage(raw: string): Promise<void> {
 		const target = message.target;
 		logger.info("extract_request", { reqId, target, conn_id: connId });
 		const extractStartedAt = Date.now();
-		const tabs = await chrome.tabs.query({ url: "https://www.linkedin.com/*" });
-		const tab = tabs.find((t: { url?: string }) => t.url?.includes("linkedin.com/in/") || t.url?.includes("linkedin.com/company/") || t.url?.includes("linkedin.com/jobs/") || t.url?.includes("linkedin.com/feed/") || t.url?.includes("linkedin.com/messaging/")) ?? tabs[0];
+		const { tab, tabsCount, allTabsCount } = await findLinkedInTab();
 		if (!tab?.id) {
-			const error = "No active tab";
-			logger.error("extract_error", { reqId, target, error, conn_id: connId });
+			const error = `No LinkedIn tab found (tabs=${tabsCount}/${allTabsCount})`;
+			logger.error("extract_error", { reqId, target, error, conn_id: connId, tabs: tabsCount, allTabs: allTabsCount });
 			socket?.send(
 				JSON.stringify({
 					id: message.id,
@@ -217,10 +230,9 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendRe
 					break;
 				}
 				case "extract": {
-					const tabs = await chrome.tabs.query({ url: "https://www.linkedin.com/*" });
-					const tab = tabs[0];
+					const { tab } = await findLinkedInTab();
 					if (!tab?.id) {
-						sendResponse({ ok: false, error: "No active tab" });
+						sendResponse({ ok: false, error: "No LinkedIn tab open" });
 						break;
 					}
 					const result = await chrome.tabs.sendMessage(tab.id, msg);
