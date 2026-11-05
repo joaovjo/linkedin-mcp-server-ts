@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { getBridge } from "../bridge/state.ts";
 import { browserManager } from "../browser/manager.ts";
 import type { AppConfig } from "../config.ts";
 import { connectWithPerson } from "../scraping/connection-actions.ts";
@@ -47,6 +48,32 @@ export function registerPersonTools(server: McpServer, config: AppConfig): void 
 		},
 		async (args) =>
 			wrapTool(config, async () => {
+				const bridge = getBridge();
+				if (bridge?.isConnected()) {
+					const raw = (await bridge.requestExtract("person", { username: args.linkedin_username })) as Record<
+						string,
+						unknown
+					> | null;
+					const data =
+						raw && typeof raw === "object" && "data" in raw && raw.data && typeof raw.data === "object"
+							? (raw.data as Record<string, unknown>)
+							: ((raw ?? {}) as Record<string, unknown>);
+
+					const name = String(data.name ?? "");
+					const headline = String(data.headline ?? "");
+					const location = String(data.location ?? "");
+					const about = String(data.about ?? "");
+					const experience = Array.isArray(data.experience) ? (data.experience as unknown[]).map((item) => String(item)) : [];
+
+					const sections: Record<string, string> = {};
+					sections.profile = [name, headline, location, about].filter((part) => part.trim().length > 0).join("\n");
+					sections.experience = experience.join("\n");
+
+					const url = String(data.profileUrl ?? data.url ?? raw?.url ?? "");
+					const result: Record<string, unknown> = { url, sections };
+					return toolJson(result);
+				}
+
 				const sections: Record<string, string> = {};
 				const references: Record<string, Reference[]> = {};
 				const sectionErrors: Record<string, SectionErrorInfo> = {};

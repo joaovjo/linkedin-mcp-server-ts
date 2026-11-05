@@ -12,4 +12,7 @@ export interface BridgeMessage {
 export interface BridgeHandle {
 	server: ReturnType<typeof Bun.serve>;
 	stop: () => void;
+	sockets: Set<WebSocket>;
+	requestExtract(target: string, params?: unknown, timeoutMs?: number): Promise<unknown>;
+	isConnected(): boolean;
 }

@@ -290,6 +290,44 @@ Configure settings via CLI flags or a `.env` file in the workspace root:
 | `VIEWPORT` | `--viewport` | `1280x720` | Browser viewport dimensions (`WIDTHxHEIGHT`) |
 | `DEBUG_PORT` | `--debug-port` | `9222` | Chrome remote debugging port used during `--login` |
 | `LOG_LEVEL` | `--log-level` | `WARNING` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `BRIDGE_ENABLED` | `--bridge` | `false` | Start the local WebSocket bridge for the Chrome extension |
+| `BRIDGE_PORT` | `--bridge-port` | `8765` | Port for the local WebSocket bridge |
+
+---
+
+## Chrome Extension (WebSocket Bridge)
+
+The repository ships an optional Chrome extension (`extension/`) that can act as a
+data source. When the bridge is enabled and the extension is connected, tools such
+as `get_person_profile` prefer data extracted directly from the page you are
+viewing, falling back to the CDP/`Bun.WebView` path otherwise.
+
+### 1. Start the MCP server with the bridge enabled
+
+```bash
+bun run src/index.ts --bridge
+# or
+BRIDGE_ENABLED=true bun run src/index.ts
+```
+
+The bridge listens on `ws://127.0.0.1:8765` by default (override with
+`--bridge-port` / `BRIDGE_PORT`).
+
+### 2. Install the extension (unpacked)
+
+1. Open `chrome://extensions` in Chrome/Edge.
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select the `extension/` directory (or its built
+   output).
+4. Open the extension popup and click **Connect** to attach to the local bridge.
+
+### 3. Use it
+
+With the bridge connected, `get_person_profile` returns data extracted by the
+extension from the active LinkedIn tab. When no client is connected, the server
+transparently falls back to its usual CDP-based scraping.
+
+The bridge is **disabled by default**; nothing changes for existing setups.
 
 ---
 
