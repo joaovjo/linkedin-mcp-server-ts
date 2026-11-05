@@ -52,6 +52,7 @@ async function getBridgeUrl() {
 }
 async function setConnected(connected) {
   await chrome.storage.local.set({
+    bridgeConnected: connected,
     [STORAGE_KEYS.lastConnectedAt]: connected ? Date.now() : undefined
   });
 }
@@ -199,7 +200,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       switch (msg.type) {
         case "get_status": {
           const state = await chrome.storage.local.get([
-            STORAGE_KEYS.lastConnectedAt
+            STORAGE_KEYS.lastConnectedAt,
+            "bridgeConnected",
+            STORAGE_KEYS.bridgeUrl
           ]);
           sendResponse({ ok: true, ...state });
           break;

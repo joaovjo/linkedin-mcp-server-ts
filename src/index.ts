@@ -25,8 +25,11 @@ import { browserManager } from "./browser/manager.ts";
 import { loadConfig } from "./config.ts";
 import { createMcpServer, SERVER_NAME, SERVER_VERSION } from "./mcp/create-server.ts";
 import { ensureSessionDirs } from "./session/store.ts";
+import { createLogger, createReqId, setLogLevel } from "./utils/logger.ts";
 
 const config = loadConfig();
+setLogLevel(config.logLevel);
+const log = createLogger({ module: "index" });
 
 await ensureSessionDirs(config.userDataDir);
 
@@ -35,7 +38,7 @@ if (config.mode === "login") {
 		await performLogin(config);
 		process.exit(0);
 	} catch (err) {
-		console.error("Login failed:", err instanceof Error ? err.message : err);
+		log.error("login_failed", { error: err instanceof Error ? err.message : String(err) });
 		process.exit(1);
 	}
 }
@@ -54,13 +57,21 @@ if (config.mode === "import") {
 		await performImportFromBrowser(config);
 		process.exit(0);
 	} catch (err) {
-		console.error("Import failed:", err instanceof Error ? err.message : err);
+		log.error("import_failed", { error: err instanceof Error ? err.message : String(err) });
 		process.exit(1);
 	}
 }
 
-console.error(`  ${SERVER_NAME} v${SERVER_VERSION}`);
-console.error(`  Transport: ${config.transport}`);
+log.info("startup", {
+	name: SERVER_NAME,
+	version: SERVER_VERSION,
+	transport: config.transport,
+	bridge_enabled: config.bridgeEnabled,
+	bridge_port: config.bridgePort,
+	logLevel: config.logLevel,
+	host: config.host,
+	port: config.port,
+});
 
 try {
 	Bun.dns.prefetch?.("www.linkedin.com");
@@ -78,16 +89,35 @@ const closeBrowser = async () => {
 
 let bridgeHandle: ReturnType<typeof startBridge> | null = null;
 if (config.bridgeEnabled) {
-	bridgeHandle = startBridge({ port: config.bridgePort });
-	setBridge(bridgeHandle);
+	try {
+		bridgeHandle = startBridge({ port: config.bridgePort });
+		setBridge(bridgeHandle);
+		log.info("bridge_started", {
+			port: bridgeHandle.server.port,
+			requested_port: config.bridgePort,
+			host: config.host,
+		});
+	} catch (err) {
+		log.error("bridge_failed", {
+			port: config.bridgePort,
+			status: "error",
+			error: err instanceof Error ? err.message : String(err),
+		});
+		throw err;
+	}
+} else {
+	log.info("bridge_disabled", {
+		bridge_enabled: false,
+		bridge_port: config.bridgePort,
+	});
 }
 
 if (config.transport === "stdio") {
 	const handle = serveStdio(() => createMcpServer(config));
-	console.error("  Listening on stdio");
+	log.info("stdio_listening", { transport: "stdio" });
 
 	const shutdown = async () => {
-		console.error("\nShutting down...");
+		log.info("shutdown", { transport: "stdio" });
 		await handle.close();
 		bridgeHandle?.stop();
 		setBridge(null);
@@ -107,28 +137,51 @@ if (config.transport === "stdio") {
 		hostname: config.host,
 		port: config.port,
 		async fetch(req) {
+			const reqId = createReqId();
+			const startedAt = Date.now();
 			const url = new URL(req.url);
-
-			if (url.pathname === "/health") {
-				return new Response("OK", { status: 200 });
+			const path = url.pathname;
+			let status = 500;
+			try {
+				let response: Response;
+				if (url.pathname === "/health") {
+					response = new Response("OK", { status: 200 });
+				} else if (url.pathname === httpPath || url.pathname === `${httpPath}/`) {
+					const hostErr = hostHeaderValidationResponse(req, localhostAllowedHostnames());
+					if (hostErr) {
+						response = hostErr;
+					} else {
+						const originErr = originValidationResponse(req, localhostAllowedOrigins());
+						response = originErr ?? (await mcpHandler.fetch(req));
+					}
+				} else {
+					response = new Response("Not Found", { status: 404 });
+				}
+				status = response.status;
+				return response;
+			} finally {
+				const durationMs = Date.now() - startedAt;
+				log.info("http_request", {
+					req_id: reqId,
+					method: req.method,
+					path,
+					status,
+					duration_ms: durationMs,
+					latency_ms: durationMs,
+				});
 			}
-
-			if (url.pathname === httpPath || url.pathname === `${httpPath}/`) {
-				const hostErr = hostHeaderValidationResponse(req, localhostAllowedHostnames());
-				if (hostErr) return hostErr;
-				const originErr = originValidationResponse(req, localhostAllowedOrigins());
-				if (originErr) return originErr;
-				return mcpHandler.fetch(req);
-			}
-
-			return new Response("Not Found", { status: 404 });
 		},
 	});
 
-	console.error(`  Server listening on http://${config.host}:${server.port}${httpPath}`);
+	log.info("http_listening", {
+		host: config.host,
+		port: server.port,
+		path: httpPath,
+		transport: config.transport,
+	});
 
 	const shutdown = async () => {
-		console.error("\nShutting down...");
+		log.info("shutdown", { transport: "streamable-http" });
 		await mcpHandler.close();
 		server.stop(true);
 		bridgeHandle?.stop();
