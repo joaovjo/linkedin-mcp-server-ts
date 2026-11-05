@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/joaovjo/linkedin-mcp-server-ts#readme",
   "scripts": {
-    "dev": "bun run src/index.ts --transport streamable-http",
+    "dev": "bun run --watch src/index.ts --transport streamable-http",
     "start": "bun run src/index.ts",
     "login": "bun run src/index.ts --login",
     "logout": "bun run src/index.ts --logout",
