@@ -1,5 +1,6 @@
 import { ensureAuthenticated } from "../browser/auth.ts";
 import { browserManager } from "../browser/manager.ts";
+import { getBridge } from "../bridge/state.ts";
 import type { AppConfig } from "../config.ts";
 import { raiseToolError } from "../errors/handler.ts";
 import { serializationQueue } from "../middleware/serialization.ts";

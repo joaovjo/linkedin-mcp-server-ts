@@ -75,28 +75,42 @@ export function readDevToolsActivePortWsUrl(
 	return null;
 }
 
-export async function readDevToolsWsUrl(port: number, timeoutMs = 15_000): Promise<string> {
-	const fromFile = readDevToolsActivePortWsUrl();
-	if (fromFile?.includes(`:${port}`)) {
-		return fromFile;
+async function isDevToolsAlive(port: number, timeoutMs = 1_500): Promise<boolean> {
+	try {
+		const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
+			signal: AbortSignal.timeout(timeoutMs),
+		});
+		return res.ok;
+	} catch {
+		return false;
 	}
+}
 
+export async function readDevToolsWsUrl(port: number, timeoutMs = 15_000): Promise<string> {
 	const deadline = Date.now() + timeoutMs;
 	let lastError: unknown;
 	while (Date.now() < deadline) {
-		const active = readDevToolsActivePortWsUrl();
-		if (active) return active;
+		// Always prefer the live endpoint: `DevToolsActivePort` can be stale
+		// (left by a previous Chrome run) and its browser path would 1006.
+		let targetPort = port > 0 ? port : 0;
+		if (targetPort === 0) {
+			const fromFile = readDevToolsActivePortWsUrl();
+			const filePort = Number(/^ws:\/\/[^:]+:(\d+)\//.exec(fromFile ?? "")?.[1] ?? 0);
+			if (filePort > 0) targetPort = filePort;
+		}
 
-		try {
-			const res = await fetch(`http://127.0.0.1:${port}/json/version`);
-			if (res.ok) {
-				const data = (await res.json()) as { webSocketDebuggerUrl?: string };
-				if (data.webSocketDebuggerUrl) return data.webSocketDebuggerUrl;
-			} else {
-				lastError = new Error(`HTTP ${res.status}`);
+		if (targetPort > 0) {
+			try {
+				const res = await fetch(`http://127.0.0.1:${targetPort}/json/version`);
+				if (res.ok) {
+					const data = (await res.json()) as { webSocketDebuggerUrl?: string };
+					if (data.webSocketDebuggerUrl) return data.webSocketDebuggerUrl;
+				} else {
+					lastError = new Error(`HTTP ${res.status}`);
+				}
+			} catch (err) {
+				lastError = err;
 			}
-		} catch (err) {
-			lastError = err;
 		}
 		await Bun.sleep(250);
 	}
@@ -109,7 +123,10 @@ export async function readDevToolsWsUrl(port: number, timeoutMs = 15_000): Promi
 
 export async function resolveExistingChromeWsUrl(debugPort = 9222): Promise<string | null> {
 	const active = readDevToolsActivePortWsUrl();
-	if (active) return active;
+	if (active) {
+		const port = Number(/^ws:\/\/[^:]+:(\d+)\//.exec(active)?.[1] ?? debugPort);
+		if (await isDevToolsAlive(port)) return active;
+	}
 	try {
 		return await readDevToolsWsUrl(debugPort, 2_000);
 	} catch {

@@ -136,6 +136,9 @@ if (config.transport === "stdio") {
 	const server = Bun.serve({
 		hostname: config.host,
 		port: config.port,
+		// Tool calls can legitimately run for minutes (login waits, paginated
+		// scrapes). Bun's default 10s idle timeout would kill the request first.
+		idleTimeout: Math.min(255, config.toolTimeout + 30),
 		async fetch(req) {
 			const reqId = createReqId();
 			const startedAt = Date.now();
