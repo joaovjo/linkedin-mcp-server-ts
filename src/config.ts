@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 /**
@@ -75,6 +75,21 @@ function parseViewport(raw: string): { width: number; height: number } {
 }
 
 /**
+ * Expands a leading `~` and resolves the path to an absolute one.
+ *
+ * @remarks
+ * Chrome requires an absolute `--user-data-dir`; a relative path makes the
+ * browser process fail to start (`Chrome process closed the pipe`). Bun's
+ * `dataStore` also does not expand `~`, so it is expanded here.
+ */
+function resolveUserDataDir(raw: string, home: string): string {
+	const trimmed = raw.trim();
+	const expanded =
+		trimmed === "~" || trimmed.startsWith("~/") || trimmed.startsWith("~\\") ? join(home, trimmed.slice(1)) : trimmed;
+	return resolve(expanded);
+}
+
+/**
  * Parses command-line arguments and environment variables into a strongly-typed {@link AppConfig}.
  *
  * @param args - Command-line arguments array. Defaults to `Bun.argv.slice(2)`.
@@ -147,7 +162,10 @@ export function loadConfig(args: string[] = Bun.argv.slice(2)): AppConfig {
 
 	const home = homedir();
 	const defaultUserData = join(home, ".linkedin-mcp", "profile");
-	const userDataDir = String(parsed.values["user-data-dir"] || parsed.values["profile-dir"] || defaultUserData);
+	const userDataDir = resolveUserDataDir(
+		String(parsed.values["user-data-dir"] || parsed.values["profile-dir"] || defaultUserData),
+		home,
+	);
 
 	let transport = String(parsed.values.transport || "").toLowerCase();
 	if (transport !== "stdio" && transport !== "streamable-http") {
