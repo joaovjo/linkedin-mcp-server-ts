@@ -134,6 +134,34 @@ async function connectBridge(): Promise<void> {
 const LINKEDIN_ORIGIN = "https://www.linkedin.com/";
 const PREFERRED_PAGE_HINTS = ["/in/", "/company/", "/jobs/", "/feed/", "/messaging/"];
 
+const CONTENT_SCRIPT_FILES: Record<string, string> = {
+	person: "content/person.js",
+	company: "content/company.js",
+	job: "content/job.js",
+	messaging: "content/messaging.js",
+	feed: "content/feed.js",
+};
+
+/**
+ * Sends a message to a tab's content script, injecting it on demand when the
+ * receiver is missing (e.g. the tab was loaded before the extension was
+ * installed/reloaded, leaving the old content script orphaned).
+ */
+async function sendMessageToTab(tabId: number, message: { type: string; target?: string; params?: unknown }): Promise<unknown> {
+	try {
+		return await chrome.tabs.sendMessage(tabId, message);
+	} catch (err) {
+		const errorText = err instanceof Error ? err.message : String(err);
+		const file = message.target ? CONTENT_SCRIPT_FILES[message.target] : undefined;
+		const receiverMissing = /Receiving end does not exist|Could not establish connection/i.test(errorText);
+		if (!receiverMissing || !file) throw err;
+		logger.info("content_script_injected", { tabId, target: message.target });
+		await chrome.scripting.executeScript({ target: { tabId }, files: [file] });
+		return await chrome.tabs.sendMessage(tabId, message);
+	}
+}
+
+
 async function findLinkedInTab(): Promise<{
 	tab: { id?: number; url?: string } | undefined;
 	tabsCount: number;
@@ -180,7 +208,7 @@ async function handleBridgeMessage(raw: string): Promise<void> {
 			return;
 		}
 		try {
-			const result = await chrome.tabs.sendMessage(tab.id, {
+			const result = await sendMessageToTab(tab.id, {
 				type: "extract",
 				target: message.target,
 				params: message.params,
@@ -264,7 +292,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendRe
 						sendResponse({ ok: false, error: "No LinkedIn tab open" });
 						break;
 					}
-					const result = await chrome.tabs.sendMessage(tab.id, msg);
+					const result = await sendMessageToTab(tab.id, msg as { type: string; target?: string; params?: unknown });
 					sendResponse(result);
 					break;
 				}
