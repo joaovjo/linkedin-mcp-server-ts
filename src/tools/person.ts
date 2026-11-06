@@ -114,7 +114,7 @@ export function registerPersonTools(server: McpServer, config: AppConfig): void 
 				if (Object.keys(sectionErrors).length) result.section_errors = sectionErrors;
 				if (unknownSections.length) result.unknown_sections = unknownSections;
 				return toolJson(result);
-			}),
+			}, { bridge: true }),
 	);
 
 	server.registerTool(
